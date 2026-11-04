@@ -6,7 +6,7 @@
 //   3. otherwise the deployed Worker below.
 //
 // After `npx wrangler deploy`, put the address it prints here (no trailing slash).
-const PRODUCTION_API = "https://dressage-horses-api.REPLACE-WITH-SUBDOMAIN.workers.dev";
+const PRODUCTION_API = "https://dressage-horses-api.nazar82666.workers.dev";
 
 const fromBuild = (import.meta.env && import.meta.env.PUBLIC_API_BASE) || "";
 const isLocal = typeof location !== "undefined" && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
