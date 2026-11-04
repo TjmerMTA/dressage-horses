@@ -1,0 +1,48 @@
+---
+import '../styles/global.css';
+import { getImage } from 'astro:assets';
+import ContactBand from '../components/ContactBand.astro';
+import { getHome, getSite } from '../lib/texts';
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const site = await getSite();
+const home = await getHome();
+
+const canonical = new URL(Astro.url.pathname, Astro.site);
+// Social preview image: the hero photograph as a 1200 px JPEG.
+const ogImage = await getImage({ src: home.hero.photo, width: 1200, format: 'jpg' });
+const ogImageUrl = new URL(ogImage.src, Astro.site);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:image:alt" content={home.hero.photoAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <slot name="head" />
+  </head>
+  <body>
+    <a class="skip btn btn-sm" href="#main">{site.skipLink}</a>
+    <slot />
+    <ContactBand />
+    <slot name="after-footer" />
+  </body>
+</html>

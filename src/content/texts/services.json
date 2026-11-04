@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "title": "Services — buying a dressage horse in Belgium, Germany and the Netherlands",
+    "description": "Individual horse search, remote support, tryouts with a Grand Prix rider and partnerships for trainers and agents. Everything around buying a dressage horse."
+  },
+  "header": {
+    "eyebrow": "Services",
+    "title": "Everything around buying a dressage horse",
+    "lead": "From your first answer to the day the horse arrives at your stable: the search, the tryout, the vet check, the paperwork and the delivery are handled by one team."
+  },
+  "sectionTitle": "What we do for you",
+  "items": [
+    {
+      "title": "Individual horse search",
+      "text": "In Belgium, the Netherlands and Germany, with everything handled for you from start to finish.",
+      "includes": [
+        "A personal selection of 20 horses for your request",
+        "2,000+ horses to choose from in Belgium, Germany and the Netherlands",
+        "800+ trusted horse owners",
+        "Individual support on every step"
+      ]
+    },
+    {
+      "title": "Remote support",
+      "text": "Test ride, vet report and delivery to your stable, for buyers who cannot travel.",
+      "includes": [
+        "Test ride arranged for you",
+        "Full vet check and vet report",
+        "Paperwork taken care of",
+        "Delivery to your stable in your country"
+      ]
+    },
+    {
+      "title": "Tryout with a Grand Prix rider",
+      "text": "Test ride and support at the tryout by a Grand Prix rider.",
+      "includes": [
+        "The horse is ridden and assessed by a Grand Prix rider",
+        "Support at the tryout when you come in person",
+        "A clear picture of the horse before you decide"
+      ]
+    },
+    {
+      "title": "Partnership",
+      "text": "Trainers and sales agents from all over the world can work together on the same horses.",
+      "includes": [
+        "For trainers and sales agents from all over the world",
+        "Work together with us on the same horses",
+        "Write to us on WhatsApp to discuss the details"
+      ]
+    }
+  ],
+  "cta": {
+    "title": "Start with 4 quick questions",
+    "text": "Tell us where you are from, your budget and how you want to buy, and we will prepare your personal selection of 20 horses.",
+    "button": "FIND ME A HORSE"
+  }
+}

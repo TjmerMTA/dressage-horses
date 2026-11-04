@@ -4,3 +4,7 @@ dist/
 .DS_Store
 *.log
 project-notes/private/
+npm-debug.log*
+.env
+.env.production
+.idea/

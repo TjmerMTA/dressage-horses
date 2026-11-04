@@ -1,0 +1,41 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import HowItWorks from '../components/HowItWorks.astro';
+import CtaPanel from '../components/CtaPanel.astro';
+import { getServices } from '../lib/texts';
+
+const page = await getServices();
+---
+
+<BaseLayout title={page.meta.title} description={page.meta.description}>
+  <PageHeader {...page.header} />
+  <main id="main" tabindex="-1">
+    <section class="svc-detail" aria-labelledby="svc-detail-h">
+      <div class="wrap">
+        <h2 id="svc-detail-h" class="sr-only">{page.sectionTitle}</h2>
+        <div class="svc-list">
+          {page.items.map((item, i) => (
+            <article class="card">
+              <div class="no">{i + 1}</div>
+              <h3>{item.title}</h3>
+              <p>{item.text}</p>
+              <ul class="ticks">
+                {item.includes.map((line) => <li>{line}</li>)}
+              </ul>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+    <HowItWorks />
+    <CtaPanel {...page.cta} />
+  </main>
+</BaseLayout>
+
+<style>
+  .svc-detail { padding-block: 4rem 5rem; }
+  .svc-list { display: grid; gap: clamp(1.2rem, 3.2vw, 2.2rem); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .svc-list .ticks { font-size: 0.97rem; }
+  @media (max-width: 719px) { .svc-list { grid-template-columns: 1fr; } }
+</style>
