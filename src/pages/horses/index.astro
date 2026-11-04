@@ -1,0 +1,265 @@
+---
+// /horses/ — the catalogue. Every published horse is in the HTML (newest first, sold ones
+// last), so the page works with JavaScript switched off. With JavaScript, the filter form
+// appears and a small script filters and re-orders the cards from data embedded at build
+// time. No server is involved.
+import { getImage } from 'astro:assets';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import HorseCard from '../../components/HorseCard.astro';
+import CtaPanel from '../../components/CtaPanel.astro';
+import { getCatalogue } from '../../lib/texts';
+import { ageOf, formatAmount, getPublishedHorses, horseHref, levelLabel, photoAlt } from '../../lib/horses';
+
+const t = await getCatalogue();
+const f = t.filters;
+const horses = await getPublishedHorses();
+
+// Filter options: only values that at least one horse has, in a fixed order.
+const present = <T extends string>(order: readonly T[], pick: (h: (typeof horses)[number]) => T) =>
+  order.filter((v) => horses.some((h) => pick(h) === v));
+const sexes = present(['mare', 'gelding', 'stallion'] as const, (h) => h.data.sex);
+const countries = present(['BE', 'DE', 'NL'] as const, (h) => h.data.country);
+const levels = present(['young horse', 'L', 'M', 'S', 'Prix St-Georges', 'Grand Prix'] as const, (h) => h.data.level);
+
+const data = {
+  horses: horses.map((h) => ({
+    slug: h.id,
+    sex: h.data.sex,
+    country: h.data.country,
+    level: h.data.level,
+    price: h.data.priceOnRequest ? null : (h.data.price ?? null),
+    sold: h.data.sold,
+  })),
+  count: f.count,
+  countOne: f.countOne,
+};
+const json = JSON.stringify(data).replace(/</g, '\\u003c');
+const countText = horses.length === 1 ? f.countOne : f.count.replace('{count}', String(horses.length));
+
+// Product / Offer structured data for the list.
+const site = Astro.site!;
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: t.header.title,
+  itemListElement: await Promise.all(
+    horses.map(async (h, i) => {
+      const img = await getImage({ src: h.data.photos[0], width: 1200, format: 'jpg' });
+      const url = new URL(horseHref(h), site).href;
+      return {
+        '@type': 'ListItem',
+        position: i + 1,
+        url,
+        item: {
+          '@type': 'Product',
+          name: h.data.name,
+          url,
+          image: new URL(img.src, site).href,
+          description: `${ageOf(h)}-year-old ${h.data.colour} ${h.data.sex}, ${h.data.height} cm, ${levelLabel(h.data.level, t)}`,
+          category: 'Dressage horse',
+          offers: {
+            '@type': 'Offer',
+            url,
+            priceCurrency: h.data.currency,
+            ...(h.data.priceOnRequest || h.data.price === undefined ? {} : { price: h.data.price }),
+            availability: h.data.sold ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
+          },
+        },
+      };
+    }),
+  ),
+};
+const jsonLdText = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
+const firstPhoto = horses[0]?.data.photos[0];
+---
+
+<BaseLayout
+  title={t.meta.title}
+  description={t.meta.description}
+  ogImage={firstPhoto}
+  ogImageAlt={horses[0] ? photoAlt(horses[0], 0, t) : undefined}
+>
+  <script slot="head" type="application/ld+json" set:html={jsonLdText} />
+  <PageHeader {...t.header} />
+  <main id="main" tabindex="-1">
+    <section class="cat" aria-labelledby="cat-h">
+      <div class="wrap">
+        <h2 id="cat-h" class="sr-only">{t.header.eyebrow}</h2>
+
+        <form class="filters" id="filters" hidden aria-labelledby="filters-h">
+          <h3 id="filters-h" class="sr-only">{f.title}</h3>
+          <div class="f-field">
+            <label for="f-sex">{f.sex}</label>
+            <span class="f-select"><select id="f-sex" name="sex">
+              <option value="">{f.any}</option>
+              {sexes.map((v) => <option value={v}>{t.labels[v]}</option>)}
+            </select></span>
+          </div>
+          <div class="f-field">
+            <label for="f-country">{f.country}</label>
+            <span class="f-select"><select id="f-country" name="country">
+              <option value="">{f.any}</option>
+              {countries.map((v) => <option value={v}>{t.labels[v]}</option>)}
+            </select></span>
+          </div>
+          <div class="f-field">
+            <label for="f-level">{f.level}</label>
+            <span class="f-select"><select id="f-level" name="level">
+              <option value="">{f.any}</option>
+              {levels.map((v) => <option value={v}>{levelLabel(v, t)}</option>)}
+            </select></span>
+          </div>
+          <div class="f-field">
+            <label for="f-min">{f.priceMin}</label>
+            <span class="f-select"><select id="f-min" name="min">
+              <option value="">{f.any}</option>
+              {t.priceSteps.map((v) => <option value={v}>{formatAmount(v)}</option>)}
+            </select></span>
+          </div>
+          <div class="f-field">
+            <label for="f-max">{f.priceMax}</label>
+            <span class="f-select"><select id="f-max" name="max">
+              <option value="">{f.any}</option>
+              {t.priceSteps.map((v) => <option value={v}>{formatAmount(v)}</option>)}
+            </select></span>
+          </div>
+          <div class="f-field">
+            <label for="f-sort">{f.sort}</label>
+            <span class="f-select"><select id="f-sort" name="sort">
+              <option value="">{f.sortNewest}</option>
+              <option value="price-up">{f.sortPriceUp}</option>
+              <option value="price-down">{f.sortPriceDown}</option>
+            </select></span>
+          </div>
+          <div class="f-bar">
+            <p class="f-count" id="f-count" role="status">{countText}</p>
+            <button type="reset" class="btn btn-ghost btn-sm" id="f-reset">{f.reset}</button>
+          </div>
+        </form>
+
+        <ul class="horse-grid" id="horse-grid">
+          {horses.map((horse) => (
+            <li data-slug={horse.id}><HorseCard horse={horse} /></li>
+          ))}
+        </ul>
+
+        <div class="empty" id="empty" hidden>
+          <p class="empty-title">{f.empty}</p>
+          <p>{f.emptyText}</p>
+          <div class="empty-actions">
+            <button type="button" class="btn btn-ghost btn-sm" id="empty-reset">{f.reset}</button>
+            <a class="btn btn-sm" href="/#quiz">{t.detail.cta.button}</a>
+          </div>
+        </div>
+      </div>
+      <script type="application/json" id="cat-data" set:html={json} />
+    </section>
+    <CtaPanel {...t.detail.cta} />
+  </main>
+</BaseLayout>
+
+<script>
+  type Item = { slug: string; sex: string; country: string; level: string; price: number | null; sold: boolean };
+  type Data = { horses: Item[]; count: string; countOne: string };
+
+  const dataEl = document.getElementById('cat-data');
+  const form = document.getElementById('filters') as HTMLFormElement | null;
+  const grid = document.getElementById('horse-grid');
+  const D: Data | null = dataEl ? JSON.parse(dataEl.textContent || 'null') : null;
+
+  if (D && form && grid) {
+    const empty = document.getElementById('empty') as HTMLElement;
+    const count = document.getElementById('f-count') as HTMLElement;
+    const KEYS = ['sex', 'country', 'level', 'min', 'max', 'sort'] as const;
+    const field = (k: (typeof KEYS)[number]) => form.elements.namedItem(k) as HTMLSelectElement;
+    // Cards in their build-time order ("newest", sold last), keyed by slug.
+    const rows = new Map<string, HTMLElement>();
+    grid.querySelectorAll<HTMLElement>(':scope > li').forEach((li) => rows.set(li.dataset.slug || '', li));
+    const order = new Map(D.horses.map((h, i) => [h.slug, i]));
+
+    const apply = () => {
+      const v = Object.fromEntries(KEYS.map((k) => [k, field(k).value])) as Record<(typeof KEYS)[number], string>;
+      const min = v.min ? Number(v.min) : null;
+      const max = v.max ? Number(v.max) : null;
+      const shown = D.horses.filter((h) => {
+        if (v.sex && h.sex !== v.sex) return false;
+        if (v.country && h.country !== v.country) return false;
+        if (v.level && h.level !== v.level) return false;
+        // A price range only matches horses with a published price.
+        if ((min !== null || max !== null) && h.price === null) return false;
+        if (min !== null && h.price !== null && h.price < min) return false;
+        if (max !== null && h.price !== null && h.price > max) return false;
+        return true;
+      });
+      const byPrice = (dir: 1 | -1) => (a: Item, b: Item) => {
+        if (a.price === null || b.price === null) {
+          if (a.price === b.price) return (order.get(a.slug) ?? 0) - (order.get(b.slug) ?? 0);
+          return a.price === null ? 1 : -1; // price on request after priced horses
+        }
+        return (a.price - b.price) * dir || (order.get(a.slug) ?? 0) - (order.get(b.slug) ?? 0);
+      };
+      const sorted = [...shown].sort((a, b) => {
+        if (a.sold !== b.sold) return a.sold ? 1 : -1; // sold horses always at the end
+        if (v.sort === 'price-up') return byPrice(1)(a, b);
+        if (v.sort === 'price-down') return byPrice(-1)(a, b);
+        return (order.get(a.slug) ?? 0) - (order.get(b.slug) ?? 0);
+      });
+      const visible = new Set(sorted.map((h) => h.slug));
+      rows.forEach((li, slug) => { li.hidden = !visible.has(slug); });
+      sorted.forEach((h) => { const li = rows.get(h.slug); if (li) grid.appendChild(li); });
+      count.textContent = sorted.length === 1 ? D.countOne : D.count.replace('{count}', String(sorted.length));
+      empty.hidden = sorted.length > 0;
+      grid.hidden = sorted.length === 0;
+
+      // Keep the choice in the address, so Back and a shared link restore it.
+      const q = new URLSearchParams();
+      KEYS.forEach((k) => { if (v[k]) q.set(k, v[k]); });
+      const qs = q.toString();
+      history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+    };
+
+    // Restore a choice from the address (only values the form offers).
+    const params = new URLSearchParams(location.search);
+    KEYS.forEach((k) => {
+      const val = params.get(k);
+      const sel = field(k);
+      if (val && Array.from(sel.options).some((o) => o.value === val)) sel.value = val;
+    });
+
+    form.addEventListener('change', apply);
+    form.addEventListener('submit', (e) => e.preventDefault());
+    // "reset" fires before the fields are cleared; apply once they are.
+    form.addEventListener('reset', () => setTimeout(apply, 0));
+    document.getElementById('empty-reset')?.addEventListener('click', () => {
+      form.reset();
+      field('sex').focus();
+    });
+    form.hidden = false;
+    apply();
+  }
+</script>
+
+<style>
+  .cat { padding-block: 3rem 1rem; }
+  .filters { display: grid; gap: 1rem 1.1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-block-end: 2.2rem; padding: clamp(1.2rem, 3vw, 1.8rem); border-radius: 22px; background: var(--accent-soft); }
+  @media (max-width: 799px) { .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 419px) { .filters { grid-template-columns: 1fr; } }
+  .f-field label { display: block; font-weight: 600; font-size: 0.9rem; margin-block-end: 0.4rem; }
+  .f-select { position: relative; display: block; }
+  .f-select::after { content: ""; position: absolute; inset-inline-end: 1rem; inset-block-start: 50%; width: 0.55rem; height: 0.55rem; margin-block-start: -0.4rem; border-inline-end: 2px solid var(--accent-text); border-block-end: 2px solid var(--accent-text); transform: rotate(45deg); pointer-events: none; }
+  .f-select select { appearance: none; -webkit-appearance: none; width: 100%; min-height: 3.1rem; padding-block: 0.6rem; padding-inline: 1rem 2.4rem; border: 2px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); font: 1rem var(--sans); cursor: pointer; }
+  .f-select select:hover { border-color: var(--line-strong); }
+  .f-select select:focus-visible { border-color: var(--accent); }
+  .f-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.8rem 1.2rem; }
+  .f-count { font-weight: 700; color: var(--accent-text); }
+
+  .horse-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(1.2rem, 3vw, 2rem); grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 999px) { .horse-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 599px) { .horse-grid { grid-template-columns: 1fr; } }
+
+  .empty { text-align: center; max-width: 34rem; margin-inline: auto; padding: clamp(1.8rem, 5vw, 3rem); border: 2px dashed var(--line-strong); border-radius: 24px; }
+  .empty-title { font: 700 clamp(1.3rem, 3vw, 1.6rem)/1.2 var(--serif); margin-block-end: 0.6rem; }
+  .empty p:not(.empty-title) { color: var(--muted); }
+  .empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; margin-block-start: 1.6rem; }
+</style>

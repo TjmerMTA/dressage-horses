@@ -2,15 +2,25 @@
 // The mock-up's 4-step quiz. Markup, styles and behaviour are the mock-up's; the texts
 // come from home.json and the links/endpoint from site.json, handed to the script as
 // JSON so the (bundled, deferred) script itself contains no copy.
-import { getHome, getSite } from '../lib/texts';
+import { getCatalogue, getHome, getSite } from '../lib/texts';
+import { getPublishedHorses } from '../lib/horses';
 
 const { quiz } = await getHome();
 const site = await getSite();
+const catalogue = await getCatalogue();
+// Horses a visitor can enquire about from their page (/#quiz?horse=<slug>): published
+// and not sold. Only these slugs are recognised; anything else in the address is ignored.
+const horses = Object.fromEntries(
+  (await getPublishedHorses()).filter((h) => !h.data.sold).map((h) => [h.id, h.data.name]),
+);
 
 const data = {
   ...quiz,
   endpoint: site.endpoint,
   whatsapp: site.links.whatsapp,
+  horses,
+  horseNote: catalogue.quiz.horseNote,
+  horseRecap: catalogue.quiz.horseRecap,
 };
 // Safe to embed inside <script type="application/json">.
 const json = JSON.stringify(data).replace(/</g, '\\u003c');
@@ -29,6 +39,7 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
           <span id="prog-label">{firstLabel}</span>
           <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
         </div>
+        <p class="q-horse" id="q-horse" hidden></p>
         <div id="steps" aria-live="polite"></div>
         <div class="q-nav"><button type="button" class="link-btn" id="back" hidden>{quiz.back}</button></div>
       </div>
@@ -60,6 +71,9 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
     thanksNamed: string;
     recap: Record<StepKey, string>;
     endpoint: string;
+    horses: Record<string, string>;
+    horseNote: string;
+    horseRecap: string;
   }
 
   const dataEl = document.getElementById('quiz-data');
@@ -70,6 +84,7 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
     const TOTAL = 4;
     const answers = { region: '', budget: '', format: '', name: '', whatsapp: '' };
     let step = 0;
+    let horse = ''; // slug of the horse the visitor came from, if any
     const stepsEl = document.getElementById('steps') as HTMLElement;
     const backBtn = document.getElementById('back') as HTMLButtonElement;
     const fill = document.getElementById('prog-fill') as HTMLElement;
@@ -188,12 +203,17 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       return out;
     };
 
+    // The horse travels in the page address (/#quiz?horse=<slug>) — the lead API accepts
+    // no extra fields. Rebuilt here because a click on a "#quiz" link drops it from the hash.
+    const pageUrl = () =>
+      horse ? location.origin + location.pathname + location.search + '#quiz?horse=' + encodeURIComponent(horse) : location.href;
+
     const send = (btn: HTMLButtonElement) => {
       const payload = Object.assign(
         {
           region: answers.region, budget: answers.budget, format: answers.format,
           name: answers.name, whatsapp: answers.whatsapp,
-          page: location.href, sent_at: new Date().toISOString(),
+          page: pageUrl(), sent_at: new Date().toISOString(),
         },
         utm(),
       );
@@ -224,9 +244,13 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       th.textContent = Q.thanksNamed.replace('{name}', answers.name);
       const recap = document.getElementById('recap') as HTMLElement;
       recap.replaceChildren();
-      ([['region', answers.region], ['budget', answers.budget], ['format', answers.format]] as const).forEach(([k, v]) => {
+      const lines: [string, string][] = [
+        [Q.recap.region, answers.region], [Q.recap.budget, answers.budget], [Q.recap.format, answers.format],
+      ];
+      if (horse) lines.unshift([Q.horseRecap, Q.horses[horse]]);
+      lines.forEach(([k, v]) => {
         const li = el('li');
-        const b = el('b', '', Q.recap[k] + ': ');
+        const b = el('b', '', k + ': ');
         li.append(b, document.createTextNode(v));
         recap.appendChild(li);
       });
@@ -234,7 +258,27 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       (document.getElementById('quiz-box') as HTMLElement).scrollIntoView({ block: 'center' });
     };
 
+    // "/#quiz?horse=<slug>" from a horse page (also "?horse=<slug>#quiz"). The fragment
+    // "quiz?horse=…" matches no id, so the browser does not scroll to the quiz by itself.
+    const noteEl = document.getElementById('q-horse') as HTMLElement;
+    const readHorse = () => {
+      const hash = location.hash;
+      const fromHash = hash.startsWith('#quiz?') ? new URLSearchParams(hash.slice(6)).get('horse') : null;
+      const slug = fromHash ?? new URLSearchParams(location.search).get('horse') ?? '';
+      if (!slug || !Object.prototype.hasOwnProperty.call(Q.horses, slug)) return false;
+      horse = slug;
+      const [before, after = ''] = Q.horseNote.split('{name}');
+      noteEl.replaceChildren(document.createTextNode(before), el('strong', '', Q.horses[slug]), document.createTextNode(after));
+      noteEl.hidden = false;
+      return hash.startsWith('#quiz?');
+    };
+    const jump = () => (document.getElementById('quiz') as HTMLElement).scrollIntoView();
+
     go(0, false);
+    if (readHorse()) requestAnimationFrame(jump);
+    window.addEventListener('hashchange', () => {
+      if (readHorse()) { if (step !== 0) go(0); jump(); }
+    });
   }
 </script>
 
@@ -249,6 +293,8 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
   .prog { display: flex; align-items: center; gap: 1rem; margin-block-end: 1.6rem; font-size: 0.85rem; color: var(--muted); }
   .prog-track { flex: 1; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
   .prog-fill { height: 100%; width: 25%; background: var(--accent); border-radius: 99px; transition: width .3s ease; }
+  .q-horse { margin-block: -0.4rem 1.2rem; padding: 0.8rem 1.1rem; border-radius: 14px; background: var(--accent-soft); color: var(--text); font-size: 0.97rem; }
+  .q-horse strong { color: var(--accent-text); }
   .q-title { font-size: clamp(1.35rem, 3.4vw, 1.8rem); margin-block-end: 1.3rem; }
   .q-title:focus { outline: none; }
   .opts { display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }

@@ -5,9 +5,10 @@ interface Props {
   title: string;
   text: string;
   button: string;
+  href?: string;
 }
 
-const { title, text, button } = Astro.props;
+const { title, text, button, href = '/#quiz' } = Astro.props;
 ---
 
 <section class="cta-sec" aria-labelledby="cta-h">
@@ -15,7 +16,7 @@ const { title, text, button } = Astro.props;
     <div class="cta-panel">
       <h2 id="cta-h">{title}</h2>
       <p>{text}</p>
-      <a class="btn" href="/#quiz">{button}</a>
+      <a class="btn" href={href}>{button}</a>
     </div>
   </div>
 </section>
