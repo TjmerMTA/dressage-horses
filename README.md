@@ -48,8 +48,16 @@ history, and the admin panel can edit the same files through the GitHub API.
   `endpoint`, an optional override of the address the quiz POSTs leads to. Leave it
   empty: the quiz sends leads through `src/scripts/lead-form.js` to the Worker named in
   `src/scripts/api-base.js`.
+  **Empty means "not set", and nothing unset is ever shown:** a social link without a real
+  profile is not rendered, the WhatsApp buttons appear only with a real number (otherwise
+  visitors use the quiz, and the texts with a `…NoWhatsapp` variant switch to it), and an
+  empty `brand` shows `siteTitle` instead. The rules live in `src/scripts/site-values.js`.
 - `src/content/texts/services.json`, `about.json`, `contact.json`: the inner pages.
-- `src/content/pages/privacy.md`, `imprint.md`: legal pages in Markdown.
+- `src/content/pages/privacy.md`, `imprint.md`: legal pages in Markdown. The company's
+  legal facts are front-matter fields of `imprint.md` (`companyName`, `legalForm`,
+  `address`, `enterpriseNumber`, `vatNumber`, `email`); empty ones are named on the page
+  as "being added". `privacy.md` has `reviewed: false` until the company approves the text.
+  The admin's **Before you go live** screen lists every value still unset.
 - `src/content/horses/<slug>.md`: one file per horse. The front matter holds the facts
   (`name`, `slug`, `price` or `priceOnRequest: true`, `year` of birth, `height` in cm,
   `sex`, `colour`, `breed`, `country`, `level`, `sire`, `dam`, `damsire`, `xrays`,

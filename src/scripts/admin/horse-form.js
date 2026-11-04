@@ -6,7 +6,7 @@ import {
 import { buildFrontMatter, parseFrontMatter, valuesOf } from "./frontmatter.js";
 import { preparePhoto, refToRepoPath } from "./photos.js";
 import { trackCommit } from "./publish.js";
-import { confirmDialog, field, h, nextId, spinner, toast } from "./ui.js";
+import { confirmDialog, errorBox, field, h, nextId, spinner, toast } from "./ui.js";
 import { repoPathToRef } from "./photos.js";
 
 const THIS_YEAR = new Date().getFullYear();
@@ -53,7 +53,7 @@ export async function renderHorseForm(root, { mode, slug }) {
     }
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) return;
-    root.replaceChildren(h("p", { class: "adm-err" }, e.message), h("a", { href: "#/horses" }, "Back to the horses"));
+    root.replaceChildren(errorBox(e), h("a", { href: "#/horses" }, "Back to the horses"));
     return;
   }
 

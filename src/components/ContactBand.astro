@@ -5,6 +5,7 @@
 import { Image, Picture } from 'astro:assets';
 import SocialLinks from './SocialLinks.astro';
 import { getSite, quizHref } from '../lib/texts';
+import { displayName, whatsappHref } from '../scripts/site-values.js';
 
 const site = await getSite();
 const { footer } = site;
@@ -28,14 +29,14 @@ const path = Astro.url.pathname;
   <div class="wrap">
     <div class="contact-main">
       <h2>{footer.title}</h2>
-      <p class="lead">{footer.lead}</p>
+      <p class="lead">{!whatsappHref(site.links.whatsapp) && footer.leadNoWhatsapp ? footer.leadNoWhatsapp : footer.lead}</p>
       <div class="cta-row">
         <a class="btn" href={quizHref(path)}>{footer.cta}</a>
       </div>
       <SocialLinks />
     </div>
     <div class="foot">
-      <div class="foot-top"><Image class="logo logo-sm" src={site.logo} alt="Logo" width={34} height={34} densities={[1, 2]} /><span>© <span id="year">{year}</span> <span id="brand2">{site.brand}</span></span></div>
+      <div class="foot-top"><Image class="logo logo-sm" src={site.logo} alt="Logo" width={34} height={34} densities={[1, 2]} /><span>© <span id="year">{year}</span> <span id="brand2">{displayName(site)}</span></span></div>
       <nav class="foot-links" aria-label="Footer">
         {footer.links.map((l) => <a href={l.href} aria-current={path === l.href ? 'page' : undefined}>{l.label}</a>)}
       </nav>

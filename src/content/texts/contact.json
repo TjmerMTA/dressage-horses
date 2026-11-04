@@ -6,7 +6,8 @@
   "header": {
     "eyebrow": "Contact",
     "title": "Talk to us about your next horse",
-    "lead": "The fastest way to reach us is WhatsApp. Or answer 4 quick questions and we will prepare your personal selection of 20 horses."
+    "lead": "The fastest way to reach us is WhatsApp. Or answer 4 quick questions and we will prepare your personal selection of 20 horses.",
+    "leadNoWhatsapp": "Answer 4 quick questions and we will prepare your personal selection of 20 horses."
   },
   "channels": [
     { "link": "whatsapp", "title": "WhatsApp", "text": "Write to us directly. This is where we send your selection and answer your questions.", "button": "Write on WhatsApp" },

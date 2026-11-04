@@ -3,6 +3,7 @@ title: Privacy policy
 eyebrow: Legal
 description: How we handle the personal data you share with us through this website and the quiz.
 updated: 2026-11-04
+reviewed: false
 ---
 
 This policy explains which personal data we collect through this website, why we collect it and what your rights are. We are a company established in Belgium, so the EU General Data Protection Regulation (GDPR) and Belgian data protection law apply.

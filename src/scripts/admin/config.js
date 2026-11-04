@@ -52,6 +52,8 @@ export const HIDDEN_TEXT_KEYS = new Set([
 /** Friendly labels for keys (by key name, anywhere). */
 export const KEY_LABELS = {
   hero: "Top of the page",
+  leadNoWhatsapp: "Introduction while no WhatsApp number is set",
+  sendNoWhatsapp: "“Sending failed” message while no WhatsApp number is set",
   how: "How it works",
   options: "Answers",
   errors: "Error messages",
