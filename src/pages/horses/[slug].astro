@@ -7,7 +7,9 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import PageHeader from '../../components/PageHeader.astro';
 import HorseGallery from '../../components/HorseGallery.astro';
 import CtaPanel from '../../components/CtaPanel.astro';
+import SampleMark from '../../components/SampleMark.astro';
 import { getCatalogue } from '../../lib/texts';
+import { SAMPLE, isSample } from '../../lib/sample';
 import {
   ageOf, countryLabel, enquiryHref, fill, formatPrice, getPublishedHorses, horseHref, levelLabel, photoAlt, sexLabel,
   type Horse,
@@ -34,8 +36,13 @@ const country = countryLabel(horse, t);
 const price = formatPrice(horse, t);
 const vars = { name: d.name, age, colour: d.colour, sex, height: d.height, level, breed: d.breed, country, price };
 
-const title = fill(t.detail.metaTitle, vars);
-const description = fill(t.detail.metaDescription, vars);
+// A sample horse is an example listing, not a horse for sale: it says so in its title,
+// above its name and in the summary box, it offers the quiz instead of an enquiry about a
+// horse that does not exist, and it publishes no Product / Offer data for search engines.
+const sample = isSample(horse);
+const title = sample ? SAMPLE.title(d.name) : fill(t.detail.metaTitle, vars);
+const description = sample ? SAMPLE.description(d.name) : fill(t.detail.metaDescription, vars);
+const eyebrow = sample ? SAMPLE.eyebrow : fill(t.detail.eyebrow, vars);
 const lead = fill(t.detail.lead, vars);
 
 const facts: [string, string][] = [
@@ -73,7 +80,8 @@ function embedUrl(url: string): string | null {
 const embed = d.video ? embedUrl(d.video) : null;
 
 const url = new URL(horseHref(horse), Astro.site).href;
-const images = await Promise.all(d.photos.map((src) => getImage({ src, width: 1200, format: 'jpg' })));
+// Only needed for the structured data, which a sample horse does not publish.
+const images = sample ? [] : await Promise.all(d.photos.map((src) => getImage({ src, width: 1200, format: 'jpg' })));
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Product',
@@ -103,20 +111,20 @@ const jsonLd = {
   },
 };
 const jsonLdText = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
-const enquire = d.sold ? '/#quiz' : enquiryHref(horse);
+const enquire = d.sold || sample ? '/#quiz' : enquiryHref(horse);
 ---
 
-<BaseLayout title={title} description={description} ogImage={d.photos[0]} ogImageAlt={photoAlt(horse, 0, t)} ogType="product">
+<BaseLayout title={title} description={description} ogImage={d.photos[0]} ogImageAlt={photoAlt(horse, 0, t)} ogType={sample ? 'website' : 'product'}>
   <Fragment slot="head">
-    {!d.sold && !d.priceOnRequest && d.price !== undefined && (
+    {!sample && !d.sold && !d.priceOnRequest && d.price !== undefined && (
       <>
         <meta property="product:price:amount" content={String(d.price)} />
         <meta property="product:price:currency" content={d.currency} />
       </>
     )}
-    <script type="application/ld+json" set:html={jsonLdText} />
+    {!sample && <script type="application/ld+json" set:html={jsonLdText} />}
   </Fragment>
-  <PageHeader eyebrow={fill(t.detail.eyebrow, vars)} title={d.name} lead={lead} />
+  <PageHeader eyebrow={eyebrow} title={d.name} lead={lead} />
   <main id="main" tabindex="-1">
     <div class="wrap">
       <p class="back">
@@ -130,7 +138,12 @@ const enquire = d.sold ? '/#quiz' : enquiryHref(horse);
         <HorseGallery horse={horse} />
         <aside class="summary" aria-labelledby="summary-h">
           <h2 id="summary-h" class="sr-only">{t.detail.factsTitle}</h2>
-          {d.sold && <span class="sold-pill">{t.labels.sold}</span>}
+          {(d.sold || sample) && (
+            <div class="s-marks">
+              {d.sold && <span class="sold-pill">{t.labels.sold}</span>}
+              {sample && <SampleMark />}
+            </div>
+          )}
           <p class="s-price">{d.sold ? t.labels.sold : price}</p>
           <ul class="s-facts">
             <li>{fill(t.labels.age, { age })}</li>
@@ -138,7 +151,12 @@ const enquire = d.sold ? '/#quiz' : enquiryHref(horse);
             <li>{level}</li>
             <li>{country}</li>
           </ul>
-          {d.sold ? (
+          {sample ? (
+            <>
+              <p class="s-note s-sample-note">{SAMPLE.detailNote}</p>
+              <a class="btn" href={enquire}>{t.detail.cta.button}</a>
+            </>
+          ) : d.sold ? (
             <>
               <p class="s-note">{t.detail.soldNote}</p>
               <a class="btn" href={enquire}>{t.detail.cta.button}</a>
@@ -213,11 +231,13 @@ const enquire = d.sold ? '/#quiz' : enquiryHref(horse);
 
   .summary { position: relative; display: grid; justify-items: start; gap: 1rem; padding: clamp(1.4rem, 3vw, 2rem); border-radius: 22px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 10px 40px rgba(41,19,5,.08); }
   .summary .btn { width: 100%; }
+  .s-marks { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
   .sold-pill { padding: 0.35rem 0.9rem; border-radius: 999px; background: var(--accent-ink); color: #FFFFFF; font: 700 0.78rem/1.2 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; }
   .s-price { font: 700 clamp(1.6rem, 3.6vw, 2.1rem)/1.15 var(--serif); }
   .s-facts { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; font-size: 0.92rem; color: var(--muted); }
   .s-facts li { padding: 0.2rem 0.75rem; border-radius: 999px; background: var(--accent-soft); }
   .s-note { font-size: 0.9rem; color: var(--muted); }
+  .s-sample-note { padding-inline-start: 0.9rem; border-inline-start: 3px solid var(--accent); color: var(--text); }
 
   .horse-body { display: grid; gap: clamp(2rem, 5vw, 3.6rem); grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; padding-block: clamp(2.6rem, 6vw, 4rem) 1rem; }
   @media (max-width: 899px) { .horse-body { grid-template-columns: 1fr; } }
