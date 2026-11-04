@@ -1,6 +1,8 @@
 // Dressage horses API — Cloudflare Worker entry point and router.
 
-import { handleGetContent, handlePutContent, handleUpload } from "./content";
+import {
+  handleDeleteContent, handleDeployStatus, handleGetContent, handlePutContent, handleRaw, handleUpload,
+} from "./content";
 import { Env, HttpError, errorResponse, isAllowedOrigin, json, preflight, readJson, withCors } from "./http";
 import { handleLead, handleLeads, handleLeadsCsv } from "./leads";
 import { SESSION_TTL_SEC, checkPassword, createSession, deleteSession, rateLimit, requireSession } from "./security";
@@ -36,7 +38,9 @@ const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   "/admin/logout": { POST: logout },
   "/admin/leads": { GET: admin(handleLeads) },
   "/admin/leads.csv": { GET: admin(handleLeadsCsv) },
-  "/admin/content": { GET: admin(handleGetContent), PUT: admin(handlePutContent) },
+  "/admin/content": { GET: admin(handleGetContent), PUT: admin(handlePutContent), DELETE: admin(handleDeleteContent) },
+  "/admin/raw": { GET: admin(handleRaw) },
+  "/admin/deploy-status": { GET: admin(handleDeployStatus) },
   "/admin/upload": { POST: admin(handleUpload) },
 };
 

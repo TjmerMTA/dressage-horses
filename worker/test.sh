@@ -89,6 +89,7 @@ check "GET unknown route"                  404 '"error"'     "$BASE/wp-login.php
 check "DELETE /health → method"            405 '"error"'     -X DELETE "$BASE/health"
 check "preflight from the site"            204 ''            -X OPTIONS -H "Origin: $ORIGIN" -H 'Access-Control-Request-Method: POST' "$BASE/lead"
 assert "preflight allows the site origin"  has_header "access-control-allow-origin: $ORIGIN"
+assert "preflight allows DELETE"           has_header "access-control-allow-methods: GET, POST, PUT, DELETE"
 check "preflight from another site"        403 'origin not allowed' -X OPTIONS -H 'Origin: https://evil.example' "$BASE/lead"
 check "POST /lead from another site"       403 'origin not allowed' -H 'Origin: https://evil.example' -H "$JSON" -d '{}' "$BASE/lead"
 check "GET /health from the site"          200 '' -H "Origin: $ORIGIN" "$BASE/health"
@@ -211,6 +212,39 @@ check "image over 8 MB"                    413 '' -H "$AUTH" -F slug=duke -F "fi
 check "slug with ../"                      400 'slug' -H "$AUTH" -F 'slug=../../x' -F "file=@$TMP/a.png;type=image/png" "$BASE/admin/upload"
 check "no file part"                       400 'file' -H "$AUTH" -F slug=duke "$BASE/admin/upload"
 check "raw body upload"                    415 'multipart' -H "$AUTH" -H 'Content-Type: image/png' --data-binary "@$TMP/a.png" "$BASE/admin/upload"
+
+echo "== DELETE /admin/content"
+check "delete without session"             401 'session' -X DELETE -H "$JSON" -d '{}' "$BASE/admin/content"
+check "read the file to delete"            200 '"sha"' -H "$AUTH" "$BASE/admin/content?path=src/content/horses/bella.md"
+BELLA_SHA="$(jget sha)"
+check "delete with stale sha"              409 'conflict' -X DELETE -H "$AUTH" -H "$JSON" \
+  -d "{\"path\":\"src/content/horses/bella.md\",\"sha\":\"$HOME_SHA\"}" "$BASE/admin/content"
+check "delete without sha"                 400 'sha' -X DELETE -H "$AUTH" -H "$JSON" \
+  -d '{"path":"src/content/horses/bella.md"}' "$BASE/admin/content"
+check "delete an image through content"    403 'upload' -X DELETE -H "$AUTH" -H "$JSON" \
+  -d "{\"path\":\"src/assets/horses/duke-2.png\",\"sha\":\"$BELLA_SHA\"}" "$BASE/admin/content"
+check "delete public/CNAME"                403 'not allowed' -X DELETE -H "$AUTH" -H "$JSON" \
+  -d "{\"path\":\"public/CNAME\",\"sha\":\"$BELLA_SHA\"}" "$BASE/admin/content"
+check "delete with current sha"            200 '"commit"' -X DELETE -H "$AUTH" -H "$JSON" \
+  -d "{\"path\":\"src/content/horses/bella.md\",\"sha\":\"$BELLA_SHA\",\"message\":\"Remove Bella\"}" "$BASE/admin/content"
+LAST_COMMIT="$(jget commit)"
+check "deleted file is gone"               404 'not found' -H "$AUTH" "$BASE/admin/content?path=src/content/horses/bella.md"
+
+echo "== GET /admin/raw"
+check "raw without session"                401 'session' "$BASE/admin/raw?path=src/assets/horses/duke-2.png"
+check "raw image"                          200 '' -H "$AUTH" "$BASE/admin/raw?path=src/assets/horses/duke-2.png"
+assert "raw bytes equal the upload"        cmp -s "$TMP/a.png" "$TMP/body"
+assert "raw content type from the bytes"   has_header 'content-type: image/png'
+check "raw on a text file"                 403 'not allowed' -H "$AUTH" "$BASE/admin/raw?path=src/content/horses/duke.md"
+check "raw with ../"                       400 'invalid path' -H "$AUTH" "$BASE/admin/raw?path=src/assets/horses/../../../package.json"
+check "raw on a missing image"             404 'not found' -H "$AUTH" "$BASE/admin/raw?path=src/assets/horses/nope-1.jpg"
+
+echo "== GET /admin/deploy-status"
+check "status without session"             401 'session' "$BASE/admin/deploy-status?sha=$LAST_COMMIT"
+check "status with a bad sha"              400 'invalid sha' -H "$AUTH" "$BASE/admin/deploy-status?sha=main"
+check "status of the last commit"          200 '"available":true' -H "$AUTH" "$BASE/admin/deploy-status?sha=$LAST_COMMIT"
+assert "run belongs to that commit"        test "$(jget run.headSha)" = "$LAST_COMMIT"
+assert "latest run on main is reported"    test "$(jget latest.headSha)" = "$LAST_COMMIT"
 
 echo "== POST /admin/logout"
 check "logout"                             200 '{"ok":true}' -X POST -H "$AUTH" "$BASE/admin/logout"

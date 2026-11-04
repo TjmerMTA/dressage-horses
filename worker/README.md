@@ -36,7 +36,7 @@ curl -s https://dressage-horses-api.<your-subdomain>.workers.dev/health   # → 
 | Name | What it is |
 |---|---|
 | `ADMIN_PASSWORD_HASH` | Lowercase hex SHA-256 of the admin password (64 characters). The password itself is stored nowhere. Use a long passphrase (4+ random words): a plain SHA-256 is fast to brute-force if the hash ever leaked. |
-| `GITHUB_TOKEN` | A **fine-grained** personal access token. Repository access: **only** `TjmerMTA/dressage-horses`. Permissions: **Contents: Read and write** (Metadata: Read is added automatically). Nothing else. Give it an expiry date and put a reminder in the calendar. |
+| `GITHUB_TOKEN` | A **fine-grained** personal access token. Repository access: **only** `TjmerMTA/dressage-horses`. Permissions: **Contents: Read and write** and **Actions: Read** (Metadata: Read is added automatically). Nothing else. Actions: Read only lets the admin show "publishing… / published / build failed"; without it the panel still works and falls back to watching the live site's `/version.json`. Give it an expiry date and put a reminder in the calendar. |
 
 `wrangler.toml` only names these. To rotate either one, run the same `secret put` again.
 Changing the password hash does not end live sessions; they expire within 12 hours.
@@ -67,6 +67,9 @@ gets a 403. Admin calls send `Authorization: Bearer <token>`.
 | `GET /admin/leads.csv?from=&to=` | session | UTF-8 CSV (with BOM, for Excel). Cells that start like a formula are prefixed with `'`. |
 | `GET /admin/content?path=` | session | File: `{"type":"file","path","sha","size","encoding":"utf-8"\|"base64","content"}`. Directory: `{"type":"dir","entries":[{name,path,type,sha,size}]}`. |
 | `PUT /admin/content` | session | `{"path","content","sha"?,"message"?}`. Max 512 KB of text. `sha` is the one from GET (omit it to create a new file). A stale `sha` → 409. `.json` must parse. → `{"ok","path","sha","commit"}` |
+| `DELETE /admin/content` | session | `{"path","sha","message"?}`. Same path rules as PUT (text files only, so photos are never deleted from the panel). → `{"ok","path","commit"}` |
+| `GET /admin/raw?path=` | session | The bytes of one photo under `src/assets/horses/` (JPEG/PNG/WebP, up to 12 MB), so the panel can show photos that the site has not built yet. |
+| `GET /admin/deploy-status?sha=<commit>` | session | `{"ok","available","run","latest"}`: the newest Actions run for that commit and the newest run on `main`, each `{status, conclusion, headSha, createdAt, url}`. `available:false` when the token lacks Actions: Read. |
 | `POST /admin/upload` | session | `multipart/form-data` with `slug` + `file`, or JSON `{"slug","data":"<base64 or data: URL>"}`. Max 8 MB. JPEG/PNG/WebP, detected from the bytes. Commits `src/assets/horses/<slug>-<n>.<ext>` with the next free `n`. → `{"ok","path","sha"}` |
 
 **Paths.** Read and write only under `src/content/`, `src/assets/horses/` and `public/`.
