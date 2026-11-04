@@ -10,10 +10,12 @@ const { links } = await getSite();
 const hrefOf = (link: 'whatsapp' | 'instagram' | 'tiktok' | 'quiz') =>
   link === 'quiz' ? '/#quiz' : link === 'whatsapp' ? whatsappHref(links.whatsapp) : socialHref(link, links[link]);
 const channels = page.channels.filter((c) => hrefOf(c.link));
+const { leadNoWhatsapp, ...header } = page.header;
+if (!whatsappHref(links.whatsapp) && leadNoWhatsapp) header.lead = leadNoWhatsapp;
 ---
 
 <BaseLayout title={page.meta.title} description={page.meta.description}>
-  <PageHeader {...page.header} />
+  <PageHeader {...header} />
   <main id="main" tabindex="-1">
     <section class="channels-sec" aria-label="Ways to reach us">
       <div class="wrap">

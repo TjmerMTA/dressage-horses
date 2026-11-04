@@ -35,7 +35,7 @@ const wa = whatsappHref(site.links.whatsapp);
   )}
   {missing.length > 0 && (
     <p>
-      {known.length > 0 ? 'The ' : 'Our '}{lower(list(missing))} {missing.length === 1 ? 'is' : 'are'} being added to this page and will appear here shortly.
+      {known.length > 0 ? 'The ' : 'Our '}{list(missing.map(lower))} {missing.length === 1 ? 'is' : 'are'} being added to this page and will appear here shortly.
       Until then, you can reach us through the <a href="/contact/">contact page</a>.
     </p>
   )}

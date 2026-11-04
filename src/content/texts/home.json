@@ -64,7 +64,8 @@
       "name": "Please enter your name.",
       "whatsapp": "Please enter a valid number with country code.",
       "consent": "Please confirm to continue.",
-      "send": "Something went wrong. Please try again, or write on WhatsApp."
+      "send": "Something went wrong. Please try again, or write on WhatsApp.",
+      "sendNoWhatsapp": "Something went wrong. Please try again in a moment."
     },
     "thanksTitle": "Thank you!",
     "thanksNamed": "Thank you, {name}!",

@@ -26,6 +26,7 @@ const pageHeader = z.object({
   eyebrow: z.string(),
   title: z.string(),
   lead: z.string().optional(),
+  leadNoWhatsapp: z.string().optional(), // used while no WhatsApp number is set
 });
 
 const titledText = z.object({ title: z.string(), text: z.string() });
@@ -75,6 +76,7 @@ const home = defineCollection({
           whatsapp: z.string(),
           consent: z.string(),
           send: z.string(),
+          sendNoWhatsapp: z.string().optional(), // used while no WhatsApp number is set
         }),
         thanksTitle: z.string(),
         thanksNamed: z.string(), // "{name}" is replaced
@@ -115,6 +117,7 @@ const site = defineCollection({
       footer: z.object({
         title: z.string(),
         lead: z.string(),
+        leadNoWhatsapp: z.string().optional(), // used while no WhatsApp number is set
         cta: z.string(),
         photo: image(),
         photoAlt: z.string().min(1),

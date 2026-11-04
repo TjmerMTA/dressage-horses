@@ -39,6 +39,13 @@ curl -s https://dressage-horses-api.<your-subdomain>.workers.dev/health   # → 
 | `GITHUB_TOKEN` | A **fine-grained** personal access token. Repository access: **only** `TjmerMTA/dressage-horses`. Permissions: **Contents: Read and write** and **Actions: Read** (Metadata: Read is added automatically). Nothing else. Actions: Read only lets the admin show "publishing… / published / build failed"; without it the panel still works and falls back to watching the live site's `/version.json`. Give it an expiry date and put a reminder in the calendar. |
 
 `wrangler.toml` only names these. To rotate either one, run the same `secret put` again.
+
+`wrangler secret put` reads the value from a prompt. In a shell that is not interactive
+it stores an **empty** secret without complaint. Pipe the value in instead
+(`printf %s "$VALUE" | npx wrangler secret put NAME`), then check with
+`npx wrangler secret list`. With an empty or missing `GITHUB_TOKEN`, every repository
+call answers `503 {"error":"repository not configured"}`, and the admin says "the server is
+missing its GitHub key". Leads and login keep working.
 Changing the password hash does not end live sessions; they expire within 12 hours.
 
 ### Plain variables (in `wrangler.toml`)
