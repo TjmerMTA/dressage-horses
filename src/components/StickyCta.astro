@@ -1,0 +1,30 @@
+---
+// The mock-up's sticky "FIND ME A HORSE" bar on phones: shown only while neither the
+// hero button, the quiz nor the contact band is on screen. Home page only.
+import { getSite } from '../lib/texts';
+
+const site = await getSite();
+---
+
+<div class="sticky" id="sticky"><a class="btn" href="#quiz">{site.stickyCta}</a></div>
+
+<script>
+  const sticky = document.getElementById('sticky');
+  const heroCta = document.getElementById('hero-cta');
+  const quiz = document.getElementById('quiz');
+  const contact = document.getElementById('contact');
+  if (sticky && heroCta && quiz && contact && 'IntersectionObserver' in window) {
+    const seen = { hero: true, quiz: false, contact: false };
+    const upd = () => sticky.classList.toggle('on', !seen.hero && !seen.quiz && !seen.contact);
+    new IntersectionObserver((e) => { seen.hero = e[0].isIntersecting; upd(); }).observe(heroCta);
+    new IntersectionObserver((e) => { seen.quiz = e[0].isIntersecting; upd(); }, { threshold: 0.15 }).observe(quiz);
+    new IntersectionObserver((e) => { seen.contact = e[0].isIntersecting; upd(); }, { threshold: 0.05 }).observe(contact);
+  }
+</script>
+
+<style>
+  .sticky { position: fixed; inset-inline: 0; inset-block-end: 0; padding-block: 0.7rem calc(0.7rem + env(safe-area-inset-bottom, 0px)); padding-inline: 1rem; background: rgba(255,255,255,.96); border-block-start: 1px solid var(--line); box-shadow: 0 -6px 20px rgba(41,19,5,.08); transform: translateY(110%); transition: transform .25s ease; z-index: 5; }
+  .sticky.on { transform: none; }
+  .sticky .btn { width: 100%; }
+  @media (min-width: 900px) { .sticky { display: none; } }
+</style>

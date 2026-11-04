@@ -1,0 +1,36 @@
+---
+// Privacy policy and imprint: Markdown from src/content/pages/, set in a readable column.
+import type { CollectionEntry } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHeader from './PageHeader.astro';
+
+interface Props {
+  entry: CollectionEntry<'pages'>;
+}
+
+const { entry } = Astro.props;
+const { title, description, eyebrow, updated } = entry.data;
+const updatedText = updated.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+---
+
+<BaseLayout title={title} description={description}>
+  <PageHeader eyebrow={eyebrow} title={title} lead={`Last updated ${updatedText}`} />
+  <main id="main" tabindex="-1">
+    <div class="wrap">
+      <article class="prose">
+        <slot />
+      </article>
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .prose { max-width: 44rem; padding-block: 3.5rem 5rem; font-size: 1.02rem; }
+  .prose :global(h2) { font-size: clamp(1.35rem, 3vw, 1.7rem); margin-block: 2.4rem 0.8rem; }
+  .prose :global(h2:first-child) { margin-block-start: 0; }
+  .prose :global(p), .prose :global(ul) { margin-block: 0 1rem; }
+  .prose :global(ul) { padding-inline-start: 1.3rem; }
+  .prose :global(li) { margin-block-end: 0.35rem; }
+  .prose :global(a) { color: var(--accent-text); text-underline-offset: 3px; }
+  .prose :global(code) { font-size: 0.92em; background: var(--accent-soft); padding: 0.1em 0.35em; border-radius: 6px; }
+</style>

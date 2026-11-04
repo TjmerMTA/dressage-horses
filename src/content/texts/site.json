@@ -1,0 +1,70 @@
+{
+  "brand": "",
+  "logo": "../../assets/brand/logo.jpg",
+  "logoAlt": "Dressage horses — home",
+  "skipLink": "Skip to content",
+  "endpoint": "",
+  "links": {
+    "instagram": "https://www.instagram.com/YOUR_HANDLE",
+    "tiktok": "https://www.tiktok.com/@YOUR_HANDLE",
+    "whatsapp": "https://wa.me/YOUR_NUMBER"
+  },
+  "nav": [
+    {
+      "label": "Horses",
+      "href": "/horses/"
+    },
+    {
+      "label": "Services",
+      "href": "/services/"
+    },
+    {
+      "label": "About",
+      "href": "/about/"
+    },
+    {
+      "label": "Contact",
+      "href": "/contact/"
+    }
+  ],
+  "menuLabel": "Menu",
+  "footer": {
+    "title": "Ready to find your horse?",
+    "lead": "Take the quick quiz, or write directly.",
+    "cta": "FIND ME A HORSE",
+    "photo": "../../assets/horses/horse-bay-white-blouse.jpg",
+    "photoAlt": "Smiling woman in a white blouse stands beside a braided bay horse among green trees",
+    "photoPosition": "5% 36%",
+    "links": [
+      {
+        "label": "Home",
+        "href": "/"
+      },
+      {
+        "label": "Horses",
+        "href": "/horses/"
+      },
+      {
+        "label": "Services",
+        "href": "/services/"
+      },
+      {
+        "label": "About",
+        "href": "/about/"
+      },
+      {
+        "label": "Contact",
+        "href": "/contact/"
+      },
+      {
+        "label": "Privacy policy",
+        "href": "/privacy/"
+      },
+      {
+        "label": "Imprint",
+        "href": "/imprint/"
+      }
+    ]
+  },
+  "stickyCta": "FIND ME A HORSE"
+}

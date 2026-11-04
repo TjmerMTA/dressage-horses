@@ -1,0 +1,63 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import CtaPanel from '../components/CtaPanel.astro';
+import { getAbout } from '../lib/texts';
+
+const page = await getAbout();
+---
+
+<BaseLayout title={page.meta.title} description={page.meta.description}>
+  <PageHeader {...page.header} />
+  <main id="main" tabindex="-1">
+    <section class="figures-sec" aria-label="Key figures">
+      <div class="wrap">
+        <ul class="figures">
+          {page.figures.map((f) => <li><strong>{f.value}</strong><span>{f.label}</span></li>)}
+        </ul>
+      </div>
+    </section>
+
+    <section class="story" aria-labelledby="story-h">
+      <div class="wrap story-grid">
+        <div>
+          <div class="eyebrow">{page.story.eyebrow}</div>
+          <h2 id="story-h">{page.story.title}</h2>
+        </div>
+        <div class="story-text">
+          {page.story.paragraphs.map((p) => <p>{p}</p>)}
+        </div>
+      </div>
+    </section>
+
+    <section class="why" aria-labelledby="why-h">
+      <div class="wrap">
+        <div class="eyebrow">{page.why.eyebrow}</div>
+        <h2 id="why-h">{page.why.title}</h2>
+        <ul class="ticks">
+          {page.why.ticks.map((t) => <li>{t}</li>)}
+        </ul>
+      </div>
+    </section>
+
+    <CtaPanel {...page.cta} />
+  </main>
+</BaseLayout>
+
+<style>
+  .figures-sec { padding-block: 4rem 0; }
+  .figures { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(1.2rem, 3.2vw, 2.2rem); grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .figures li { padding: clamp(1.4rem, 3vw, 2.2rem); border-radius: 22px; background: var(--accent-soft); }
+  .figures strong { display: block; font-family: var(--serif); font-weight: 700; font-size: clamp(2.4rem, 6vw, 3.2rem); line-height: 1; color: var(--accent-text); margin-block-end: 0.6rem; }
+  .figures span { color: var(--muted); font-size: 0.97rem; }
+  @media (max-width: 599px) { .figures { grid-template-columns: 1fr; } }
+
+  .story { padding-block: 5rem; }
+  .story-grid { display: grid; gap: 1.6rem clamp(2rem, 6vw, 5rem); grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); }
+  @media (max-width: 799px) { .story-grid { grid-template-columns: 1fr; } }
+  .story h2, .why h2 { font-size: clamp(1.7rem, 4vw, 2.5rem); max-width: 34rem; }
+  .story-text { display: grid; gap: 1rem; color: var(--muted); font-size: 1.05rem; }
+
+  .why { padding-block: 5rem; border-block: 1px solid var(--line); }
+  .why .ticks { max-width: 40rem; }
+</style>

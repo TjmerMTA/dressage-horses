@@ -1,0 +1,275 @@
+---
+// The mock-up's 4-step quiz. Markup, styles and behaviour are the mock-up's; the texts
+// come from home.json and the links/endpoint from site.json, handed to the script as
+// JSON so the (bundled, deferred) script itself contains no copy.
+import { getHome, getSite } from '../lib/texts';
+
+const { quiz } = await getHome();
+const site = await getSite();
+
+const data = {
+  ...quiz,
+  endpoint: site.endpoint,
+  whatsapp: site.links.whatsapp,
+};
+// Safe to embed inside <script type="application/json">.
+const json = JSON.stringify(data).replace(/</g, '\\u003c');
+const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4');
+---
+
+<section class="quiz-sec" id="quiz" aria-labelledby="quiz-h">
+  <div class="wrap">
+    <div class="quiz-head">
+      <h2 id="quiz-h">{quiz.title}</h2>
+      <p>{quiz.intro}</p>
+    </div>
+    <div class="quiz" id="quiz-box">
+      <div id="quiz-flow">
+        <div class="prog" aria-hidden="true">
+          <span id="prog-label">{firstLabel}</span>
+          <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+        </div>
+        <div id="steps" aria-live="polite"></div>
+        <div class="q-nav"><button type="button" class="link-btn" id="back" hidden>{quiz.back}</button></div>
+      </div>
+      <div class="thanks" id="thanks" hidden>
+        <h3 tabindex="-1" id="thanks-h">{quiz.thanksTitle}</h3>
+        <p>{quiz.thanksText}</p>
+        <ul class="recap" id="recap"></ul>
+        <a class="btn btn-sm" href={site.links.whatsapp}>{quiz.whatsappNow}</a>
+      </div>
+    </div>
+  </div>
+  <script type="application/json" id="quiz-data" set:html={json} />
+</section>
+
+<script>
+  type StepKey = 'region' | 'budget' | 'format';
+  interface QuizData {
+    stepLabel: string;
+    steps: { key: StepKey; title: string; options: string[] }[];
+    contactTitle: string;
+    nameLabel: string;
+    whatsappLabel: string;
+    whatsappPlaceholder: string;
+    whatsappHint: string;
+    consent: string;
+    submit: string;
+    sending: string;
+    errors: { name: string; whatsapp: string; consent: string; send: string };
+    thanksNamed: string;
+    recap: Record<StepKey, string>;
+    endpoint: string;
+  }
+
+  const dataEl = document.getElementById('quiz-data');
+  const Q: QuizData | null = dataEl ? JSON.parse(dataEl.textContent || 'null') : null;
+
+  if (Q) {
+    const STEPS = Q.steps;
+    const TOTAL = 4;
+    const answers = { region: '', budget: '', format: '', name: '', whatsapp: '' };
+    let step = 0;
+    const stepsEl = document.getElementById('steps') as HTMLElement;
+    const backBtn = document.getElementById('back') as HTMLButtonElement;
+    const fill = document.getElementById('prog-fill') as HTMLElement;
+    const label = document.getElementById('prog-label') as HTMLElement;
+
+    const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text) e.textContent = text;
+      return e;
+    };
+
+    const setProgress = () => {
+      label.textContent = Q.stepLabel.replace('{step}', String(step + 1)).replace('{total}', String(TOTAL));
+      fill.style.width = ((step + 1) / TOTAL) * 100 + '%';
+      backBtn.hidden = step === 0;
+    };
+
+    const renderOptionStep = (i: number) => {
+      const s = STEPS[i];
+      const wrap = el('div');
+      const h = el('h3', 'q-title', s.title);
+      h.tabIndex = -1;
+      h.id = 'q-title';
+      wrap.appendChild(h);
+      const grid = el('div', 'opts');
+      s.options.forEach((opt) => {
+        const b = el('button', 'opt', opt);
+        b.type = 'button';
+        b.setAttribute('aria-pressed', String(answers[s.key] === opt));
+        b.addEventListener('click', () => {
+          answers[s.key] = opt;
+          grid.querySelectorAll('.opt').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+          setTimeout(() => go(step + 1), 220);
+        });
+        grid.appendChild(b);
+      });
+      wrap.appendChild(grid);
+      return wrap;
+    };
+
+    const renderContactStep = () => {
+      const wrap = el('div');
+      const h = el('h3', 'q-title', Q.contactTitle);
+      h.tabIndex = -1;
+      h.id = 'q-title';
+      wrap.appendChild(h);
+      const form = el('form', 'form-grid');
+      form.noValidate = true;
+
+      const f1 = el('div', 'field');
+      const l1 = el('label', '', Q.nameLabel); l1.htmlFor = 'f-name';
+      const i1 = el('input'); i1.type = 'text'; i1.id = 'f-name'; i1.name = 'name'; i1.autocomplete = 'name'; i1.value = answers.name;
+      const e1 = el('div', 'err'); e1.id = 'e-name';
+      f1.append(l1, i1, e1);
+
+      const f2 = el('div', 'field');
+      const l2 = el('label', '', Q.whatsappLabel); l2.htmlFor = 'f-wa';
+      const i2 = el('input'); i2.type = 'tel'; i2.id = 'f-wa'; i2.name = 'whatsapp'; i2.autocomplete = 'tel'; i2.inputMode = 'tel'; i2.placeholder = Q.whatsappPlaceholder; i2.value = answers.whatsapp;
+      const hint = el('div', 'hint', Q.whatsappHint);
+      const e2 = el('div', 'err'); e2.id = 'e-wa';
+      f2.append(l2, i2, hint, e2);
+
+      const c = el('label', 'consent');
+      const cb = el('input'); cb.type = 'checkbox'; cb.id = 'f-consent';
+      const ct = el('span', '', Q.consent);
+      c.append(cb, ct);
+      const e3 = el('div', 'err'); e3.id = 'e-consent';
+
+      const actions = el('div', 'form-actions');
+      const submit = el('button', 'btn', Q.submit);
+      submit.type = 'submit';
+      actions.appendChild(submit);
+
+      form.append(f1, f2, c, e3, actions);
+      form.addEventListener('submit', (ev) => {
+        ev.preventDefault();
+        let ok = true;
+        const name = i1.value.trim();
+        const wa = i2.value.trim();
+        const digits = wa.replace(/\D/g, '');
+        e1.textContent = ''; e2.textContent = ''; e3.textContent = '';
+        if (name.length < 2) { e1.textContent = Q.errors.name; ok = false; }
+        if (digits.length < 7 || digits.length > 15) { e2.textContent = Q.errors.whatsapp; ok = false; }
+        if (!cb.checked) { e3.textContent = Q.errors.consent; ok = false; }
+        if (!ok) { (name.length < 2 ? i1 : digits.length < 7 || digits.length > 15 ? i2 : cb).focus(); return; }
+        answers.name = name;
+        answers.whatsapp = wa;
+        send(submit);
+      });
+      wrap.appendChild(form);
+      return wrap;
+    };
+
+    // `focus` is false only for the very first render on page load, so the page does not
+    // jump keyboard / screen-reader focus into the quiz before the visitor reaches it.
+    const go = (n: number, focus = true) => {
+      step = Math.max(0, Math.min(TOTAL - 1, n));
+      stepsEl.replaceChildren(step < 3 ? renderOptionStep(step) : renderContactStep());
+      setProgress();
+      const t = document.getElementById('q-title');
+      if (t && focus) t.focus({ preventScroll: true });
+    };
+
+    backBtn.addEventListener('click', () => go(step - 1));
+
+    const utm = () => {
+      const out: Record<string, string> = {};
+      try {
+        const p = new URLSearchParams(location.search);
+        ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid'].forEach((k) => {
+          const v = p.get(k);
+          if (v) out[k] = v;
+        });
+      } catch (e) {}
+      return out;
+    };
+
+    const send = (btn: HTMLButtonElement) => {
+      const payload = Object.assign(
+        {
+          region: answers.region, budget: answers.budget, format: answers.format,
+          name: answers.name, whatsapp: answers.whatsapp,
+          page: location.href, sent_at: new Date().toISOString(),
+        },
+        utm(),
+      );
+      btn.disabled = true;
+      btn.textContent = Q.sending;
+      const done = () => {
+        const w = window as unknown as { fbq?: (...a: unknown[]) => void; gtag?: (...a: unknown[]) => void };
+        try { if (w.fbq) w.fbq('track', 'Lead'); } catch (e) {}
+        try { if (w.gtag) w.gtag('event', 'generate_lead'); } catch (e) {}
+        showThanks();
+      };
+      if (!Q.endpoint) { done(); return; }
+      fetch(Q.endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true })
+        .then((r) => { if (!r.ok) throw new Error('bad'); done(); })
+        .catch(() => {
+          btn.disabled = false;
+          btn.textContent = Q.submit;
+          const e3 = document.getElementById('e-consent');
+          if (e3) e3.textContent = Q.errors.send;
+        });
+    };
+
+    const showThanks = () => {
+      (document.getElementById('quiz-flow') as HTMLElement).hidden = true;
+      const t = document.getElementById('thanks') as HTMLElement;
+      t.hidden = false;
+      const th = document.getElementById('thanks-h') as HTMLElement;
+      th.textContent = Q.thanksNamed.replace('{name}', answers.name);
+      const recap = document.getElementById('recap') as HTMLElement;
+      recap.replaceChildren();
+      ([['region', answers.region], ['budget', answers.budget], ['format', answers.format]] as const).forEach(([k, v]) => {
+        const li = el('li');
+        const b = el('b', '', Q.recap[k] + ': ');
+        li.append(b, document.createTextNode(v));
+        recap.appendChild(li);
+      });
+      th.focus({ preventScroll: true });
+      (document.getElementById('quiz-box') as HTMLElement).scrollIntoView({ block: 'center' });
+    };
+
+    go(0, false);
+  }
+</script>
+
+<style is:global>
+  /* Global, not scoped: most of the quiz is built by the script at runtime, and
+     runtime-created elements do not carry Astro's scoping attribute. */
+  .quiz-sec { padding: 4.5rem 0; }
+  .quiz-head { text-align: center; max-width: 40rem; margin-block: 0 2rem; margin-inline: auto; }
+  .quiz-head h2 { font-size: clamp(1.7rem, 4vw, 2.5rem); }
+  .quiz-head p { margin-block-start: 0.8rem; color: var(--muted); }
+  .quiz { max-width: 44rem; margin-inline: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: clamp(1.3rem, 4vw, 2.4rem); box-shadow: 0 10px 40px rgba(41,19,5,.08); }
+  .prog { display: flex; align-items: center; gap: 1rem; margin-block-end: 1.6rem; font-size: 0.85rem; color: var(--muted); }
+  .prog-track { flex: 1; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+  .prog-fill { height: 100%; width: 25%; background: var(--accent); border-radius: 99px; transition: width .3s ease; }
+  .q-title { font-size: clamp(1.35rem, 3.4vw, 1.8rem); margin-block-end: 1.3rem; }
+  .q-title:focus { outline: none; }
+  .opts { display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }
+  .opt { text-align: start; padding: 1.1rem 1.2rem; border: 2px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--text); font: 600 1.02rem/1.35 var(--sans); cursor: pointer; transition: border-color .12s, background .12s, transform .12s, box-shadow .12s; min-height: 4rem; display: flex; align-items: center; box-shadow: 0 3px 0 var(--line-strong), 0 10px 20px rgba(41,19,5,.07); }
+  .opt:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 5px 0 var(--accent), 0 14px 24px rgba(41,19,5,.10); }
+  .opt:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--line-strong), 0 4px 8px rgba(41,19,5,.08); }
+  .opt[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 3px 0 var(--accent), 0 10px 20px rgba(41,19,5,.07); }
+  .q-nav { margin-block-start: 1.4rem; min-height: 2.4rem; }
+  .link-btn { background: none; border: 0; padding: 0.4rem 0; color: var(--muted); font: 600 0.95rem var(--sans); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .form-grid { display: grid; gap: 1rem; }
+  .field label { display: block; font-weight: 600; margin-block-end: 0.4rem; font-size: 0.95rem; }
+  .field input[type="text"], .field input[type="tel"] { width: 100%; min-height: 3.3rem; padding: 0.7rem 1rem; border: 2px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); font: 1.05rem var(--sans); }
+  .field input:focus { border-color: var(--accent); outline: none; }
+  .hint { font-size: 0.85rem; color: var(--muted); margin-block-start: 0.35rem; }
+  .err { font-size: 0.88rem; color: var(--err); margin-block-start: 0.35rem; min-height: 1.2em; }
+  .consent { display: grid; grid-template-columns: 1.4rem 1fr; gap: 0.7rem; align-items: start; font-size: 0.88rem; color: var(--muted); }
+  .consent input { width: 1.25rem; height: 1.25rem; margin-block: 0.15rem 0; margin-inline: 0; accent-color: var(--accent); }
+  .form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-block-start: 0.4rem; }
+  .thanks { text-align: center; padding-block: 1rem 0.4rem; padding-inline: 0; }
+  .thanks h3 { font-size: 1.8rem; margin-block-end: 0.8rem; }
+  .thanks p { color: var(--muted); max-width: 30rem; margin-block: 0 1.4rem; margin-inline: auto; }
+  .recap { list-style: none; margin-block: 0 1.6rem; margin-inline: auto; padding: 0; max-width: 24rem; text-align: start; display: grid; gap: 0.4rem; font-size: 0.95rem; }
+  .recap b { color: var(--text); }
+</style>

@@ -1,0 +1,64 @@
+---
+// The mock-up's top bar (logo on the left). The site navigation sits on the right:
+// an inline pill of links from 600 px up, a <details> "Menu" below that (no JavaScript).
+import { Image } from 'astro:assets';
+import { getSite } from '../lib/texts';
+
+const site = await getSite();
+const path = Astro.url.pathname;
+const isCurrent = (href: string) => (path === href ? 'page' : undefined);
+---
+
+<div class="top">
+  <a class="home-link" href="/">
+    <Image
+      class="logo"
+      src={site.logo}
+      alt={site.logoAlt}
+      width={52}
+      height={52}
+      densities={[1, 2]}
+      loading="eager"
+    />
+  </a>
+  <nav class="nav-wide" aria-label="Main">
+    <ul class="nav-list">
+      {site.nav.map((item) => (
+        <li><a href={item.href} aria-current={isCurrent(item.href)}>{item.label}</a></li>
+      ))}
+    </ul>
+  </nav>
+  <details class="nav-menu">
+    <summary class="btn btn-ghost btn-sm">{site.menuLabel}</summary>
+    <nav aria-label="Main">
+      <ul class="menu-list">
+        {site.nav.map((item) => (
+          <li><a href={item.href} aria-current={isCurrent(item.href)}>{item.label}</a></li>
+        ))}
+      </ul>
+    </nav>
+  </details>
+</div>
+
+<style>
+  .top { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.2rem 0; }
+  .home-link { display: block; border-radius: 12px; }
+
+  .nav-list { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.2rem; list-style: none; margin: 0; padding: 0.3rem; background: rgba(255,255,255,.92); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 10px 20px rgba(41,19,5,.06); }
+  .nav-list a { display: block; padding: 0.5rem 0.95rem; border-radius: 999px; font: 600 0.92rem/1.2 var(--sans); color: var(--text); text-decoration: none; transition: background .12s ease, color .12s ease; }
+  .nav-list a:hover { background: var(--accent-soft); }
+  .nav-list a[aria-current="page"] { background: var(--accent-soft); color: var(--accent-text); }
+
+  .nav-menu { display: none; }
+  .nav-menu summary { list-style: none; background: rgba(255,255,255,.96); }
+  .nav-menu summary::-webkit-details-marker { display: none; }
+  .menu-list { position: absolute; inset-inline-end: 0; inset-block-start: calc(100% - 0.6rem); z-index: 3; min-width: 12rem; list-style: none; margin: 0; padding: 0.5rem; display: grid; gap: 0.15rem; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 10px 40px rgba(41,19,5,.14); }
+  .menu-list a { display: block; padding: 0.75rem 1rem; border-radius: 12px; font: 600 1rem/1.2 var(--sans); text-decoration: none; }
+  .menu-list a:hover { background: var(--accent-soft); }
+  .menu-list a[aria-current="page"] { background: var(--accent-soft); color: var(--accent-text); }
+
+  @media (max-width: 599px) {
+    .nav-wide { display: none; }
+    .nav-menu { display: block; }
+  }
+</style>

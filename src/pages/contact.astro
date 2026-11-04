@@ -1,0 +1,41 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import { getContact, getSite } from '../lib/texts';
+
+const page = await getContact();
+const { links } = await getSite();
+const hrefOf = (link: 'whatsapp' | 'instagram' | 'tiktok' | 'quiz') => (link === 'quiz' ? '/#quiz' : links[link]);
+---
+
+<BaseLayout title={page.meta.title} description={page.meta.description}>
+  <PageHeader {...page.header} />
+  <main id="main" tabindex="-1">
+    <section class="channels-sec" aria-label="Ways to reach us">
+      <div class="wrap">
+        <div class="channels">
+          {page.channels.map((c, i) => (
+            <article class="card">
+              <h2>{c.title}</h2>
+              <p>{c.text}</p>
+              {c.link === 'quiz' ? (
+                <a class="btn btn-sm" href={hrefOf(c.link)}>{c.button}</a>
+              ) : (
+                <a class={i === 0 ? 'btn btn-sm' : 'btn btn-ghost btn-sm'} href={hrefOf(c.link)} target="_blank" rel="noopener">{c.button}</a>
+              )}
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .channels-sec { padding-block: 4rem 5rem; }
+  .channels { display: grid; gap: clamp(1.2rem, 3.2vw, 2.2rem); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 599px) { .channels { grid-template-columns: 1fr; } }
+  .channels .card { display: grid; align-content: start; justify-items: start; gap: 0; }
+  .channels h2 { font-family: var(--sans); font-size: 1.2rem; margin-block-end: 0.6rem; }
+  .channels p { margin-block-end: 1.4rem; }
+</style>
