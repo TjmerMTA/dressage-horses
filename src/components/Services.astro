@@ -1,0 +1,25 @@
+---
+// The mock-up's "Services" section (four numbered cards).
+import { getHome } from '../lib/texts';
+
+const { services } = await getHome();
+---
+
+<section class="services" aria-labelledby="svc-h">
+  <div class="wrap">
+    <div class="eyebrow">{services.eyebrow}</div>
+    <h2 id="svc-h">{services.title}</h2>
+    <div class="svc">
+      {services.items.map((item, i) => (
+        <article class="card"><div class="no">{i + 1}</div><h3>{item.title}</h3><p>{item.text}</p></article>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .services { padding: 5rem 0; }
+  .services h2 { font-size: clamp(1.7rem, 4vw, 2.5rem); max-width: 34rem; }
+  .svc { display: grid; gap: clamp(1.2rem, 3.2vw, 2.2rem); margin-block-start: 2.6rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 519px) { .svc { grid-template-columns: 1fr; } }
+</style>

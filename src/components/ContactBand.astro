@@ -1,0 +1,73 @@
+---
+// The mock-up's <footer class="contact">: closing call to action, socials, small print.
+// It is the site footer on every page. The grey photo box (#photo-contact) now holds a
+// real photograph, lazy-loaded (it is far below the fold).
+import { Image, Picture } from 'astro:assets';
+import SocialLinks from './SocialLinks.astro';
+import { getSite, quizHref } from '../lib/texts';
+
+const site = await getSite();
+const { footer } = site;
+const year = new Date().getFullYear();
+const path = Astro.url.pathname;
+---
+
+<footer class="contact" id="contact">
+  <div class="photo photo-contact on" id="photo-contact" style={footer.photoPosition ? `--focus: ${footer.photoPosition}` : undefined}>
+    <Picture
+      src={footer.photo}
+      alt={footer.photoAlt}
+      formats={['avif', 'webp']}
+      fallbackFormat="jpg"
+      widths={[480, 640, 960, 1280, 1600]}
+      sizes="(max-width: 450px) 450px, (max-width: 899px) 100vw, 900px"
+      loading="lazy"
+      decoding="async"
+    />
+  </div>
+  <div class="wrap">
+    <div class="contact-main">
+      <h2>{footer.title}</h2>
+      <p class="lead">{footer.lead}</p>
+      <div class="cta-row">
+        <a class="btn" href={quizHref(path)}>{footer.cta}</a>
+      </div>
+      <SocialLinks />
+    </div>
+    <div class="foot">
+      <div class="foot-top"><Image class="logo logo-sm" src={site.logo} alt="Logo" width={34} height={34} densities={[1, 2]} /><span>© <span id="year">{year}</span> <span id="brand2">{site.brand}</span></span></div>
+      <nav class="foot-links" aria-label="Footer">
+        {footer.links.map((l) => <a href={l.href} aria-current={path === l.href ? 'page' : undefined}>{l.label}</a>)}
+      </nav>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .photo-contact { inset-block: 0; inset-inline-end: 0; width: clamp(420px, 46%, 760px); --photo-pos: var(--focus, 60% 36%); --photo-op: .95;
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 45%), linear-gradient(to top, transparent 0%, #000 28%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent 0%, #000 45%), linear-gradient(to top, transparent 0%, #000 28%);
+    mask-composite: intersect; }
+  @media (max-width: 899px) {
+    .photo-contact { inset-inline: 0; width: 100%; height: 300px; inset-block-end: auto; --photo-op: .42; --photo-pos: 55% 38%;
+      -webkit-mask-image: linear-gradient(to bottom, #000 35%, transparent 100%); -webkit-mask-composite: source-over;
+      mask-image: linear-gradient(to bottom, #000 35%, transparent 100%); mask-composite: add; }
+  }
+
+  .contact { position: relative; overflow: hidden; background: var(--bg); color: var(--text); padding-block: 5rem 2.6rem; padding-inline: 0; border-block-start: 1px solid var(--line); }
+  .contact .wrap { position: relative; z-index: 1; }
+  @media (max-width: 899px) { .contact { padding-block-start: 15rem; } }
+  .contact-main { max-width: 34rem; }
+  .contact h2 { font-size: clamp(1.8rem, 4.4vw, 2.7rem); }
+  .contact .lead { margin-block-start: 0.9rem; color: var(--muted); max-width: 30rem; }
+  .contact :global(.socials) { display: flex; flex-wrap: wrap; gap: 1rem; margin-block-start: 1.8rem; }
+  .contact :global(.soc) { display: grid; place-items: center; width: 3.4rem; height: 3.4rem; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--line-strong); box-shadow: 0 3px 0 var(--line-strong), 0 10px 20px rgba(41,19,5,.10); transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
+  .contact :global(.soc svg) { width: 1.7rem; height: 1.7rem; display: block; }
+  .contact :global(.soc:hover) { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 5px 0 var(--accent), 0 14px 24px rgba(41,19,5,.12); }
+  .contact :global(.soc:active) { transform: translateY(2px); box-shadow: 0 1px 0 var(--line-strong), 0 4px 8px rgba(41,19,5,.10); }
+  .foot { margin-block-start: 3.4rem; max-width: 22rem; padding-block-start: 1.4rem; border-block-start: 1px solid var(--line); display: grid; gap: 0.7rem; justify-items: start; color: var(--muted); }
+  .foot-top { display: flex; align-items: center; gap: 0.8rem; font-size: 0.8rem; }
+  .foot-links { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; font-size: 0.75rem; }
+  .foot-links a { text-decoration: underline; text-underline-offset: 3px; }
+</style>

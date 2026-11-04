@@ -1,0 +1,123 @@
+{
+  "meta": {
+    "title": "Dressage horses from Belgium, Germany and the Netherlands",
+    "description": "A Belgian company with 6+ years of experience finds dressage horses for clients from all over the world. Get a personal selection of 20 horses."
+  },
+  "hero": {
+    "eyebrow": "Dressage horses · Belgium · Germany · Netherlands",
+    "title": "Find your perfectly suited dressage horse",
+    "lead": "A Belgian company with 6+ years of experience helps clients from all over the world find dressage horses, with everything taken care of.",
+    "ticks": [
+      "2,000+ horses to choose from in Belgium, Germany and the Netherlands",
+      "Tryout, full vet check, paperwork and delivery to your country",
+      "800+ trusted horse owners and individual support on every step"
+    ],
+    "cta": "FIND ME A HORSE",
+    "ctaNote": "4 quick questions",
+    "photo": "../../assets/horses/horse-grey-extended-trot.jpg",
+    "photoAlt": "Grey horse in extended trot, ridden by a woman in a navy polo on sand",
+    "photoPosition": "10% 40%"
+  },
+  "quiz": {
+    "title": "Get your personal selection of 20 horses",
+    "intro": "Answer 4 quick questions so we can understand your request, get in touch for the details and prepare your selection.",
+    "stepLabel": "Step {step} of {total}",
+    "back": "← Back",
+    "steps": [
+      {
+        "key": "region",
+        "title": "Where are you from?",
+        "options": [
+          "USA / Canada",
+          "Europe",
+          "GCC (Gulf countries)",
+          "Asia"
+        ]
+      },
+      {
+        "key": "budget",
+        "title": "What is your budget?",
+        "options": [
+          "€30,000 – 60,000",
+          "€60,000 – 100,000",
+          "€100,000+"
+        ]
+      },
+      {
+        "key": "format",
+        "title": "How do you want to buy?",
+        "options": [
+          "Online purchase",
+          "I will come to try the horse in person"
+        ]
+      }
+    ],
+    "contactTitle": "Where can we send your selection?",
+    "nameLabel": "Your name",
+    "whatsappLabel": "WhatsApp number",
+    "whatsappPlaceholder": "+1 555 123 4567",
+    "whatsappHint": "With country code, for example +971 or +1",
+    "consent": "I agree to be contacted on WhatsApp about my request. We guarantee not to send you any marketing spam or share your details with third parties.",
+    "submit": "FIND A HORSE",
+    "sending": "Sending…",
+    "errors": {
+      "name": "Please enter your name.",
+      "whatsapp": "Please enter a valid number with country code.",
+      "consent": "Please confirm to continue.",
+      "send": "Something went wrong. Please try again, or write on WhatsApp."
+    },
+    "thanksTitle": "Thank you!",
+    "thanksNamed": "Thank you, {name}!",
+    "thanksText": "Your request is received. You will get a message on WhatsApp soon.",
+    "recap": {
+      "region": "Region",
+      "budget": "Budget",
+      "format": "Buying"
+    },
+    "whatsappNow": "Write on WhatsApp now"
+  },
+  "how": {
+    "eyebrow": "Process",
+    "title": "How it works with us",
+    "steps": [
+      {
+        "title": "Tell us what you need",
+        "text": "Answer 4 quick questions."
+      },
+      {
+        "title": "Get your selection",
+        "text": "A personal list of 20 horses for your request."
+      },
+      {
+        "title": "View and test ride",
+        "text": "In person or with remote support."
+      },
+      {
+        "title": "Vet check, papers, delivery",
+        "text": "Everything arranged up to your stable."
+      }
+    ]
+  },
+  "services": {
+    "eyebrow": "Services",
+    "title": "Everything around buying a dressage horse",
+    "items": [
+      {
+        "title": "Individual horse search",
+        "text": "In Belgium, the Netherlands and Germany, with everything handled for you from start to finish."
+      },
+      {
+        "title": "Remote support",
+        "text": "Test ride, vet report and delivery to your stable, for buyers who cannot travel."
+      },
+      {
+        "title": "Tryout with a Grand Prix rider",
+        "text": "Test ride and support at the tryout by a Grand Prix rider."
+      },
+      {
+        "title": "Partnership",
+        "text": "Trainers and sales agents from all over the world can work together on the same horses."
+      }
+    ]
+  }
+}

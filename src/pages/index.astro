@@ -1,0 +1,21 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/Hero.astro';
+import Quiz from '../components/Quiz.astro';
+import HowItWorks from '../components/HowItWorks.astro';
+import Services from '../components/Services.astro';
+import StickyCta from '../components/StickyCta.astro';
+import { getHome } from '../lib/texts';
+
+const { meta } = await getHome();
+---
+
+<BaseLayout title={meta.title} description={meta.description}>
+  <Hero />
+  <main id="main" tabindex="-1">
+    <Quiz />
+    <HowItWorks />
+    <Services />
+  </main>
+  <StickyCta slot="after-footer" />
+</BaseLayout>

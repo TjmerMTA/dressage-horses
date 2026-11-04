@@ -1,0 +1,33 @@
+---
+// Header for the inner pages: the mock-up's top bar, then eyebrow, the page's only <h1>
+// and a lead paragraph — the hero's typography without the photograph.
+import SiteNav from './SiteNav.astro';
+
+interface Props {
+  eyebrow: string;
+  title: string;
+  lead?: string | undefined;
+}
+
+const { eyebrow, title, lead } = Astro.props;
+---
+
+<header class="page-head">
+  <div class="wrap">
+    <SiteNav />
+    <div class="page-main">
+      <div class="eyebrow">{eyebrow}</div>
+      <h1>{title}</h1>
+      {lead && <p class="lead">{lead}</p>}
+    </div>
+  </div>
+</header>
+
+<style>
+  .page-head { position: relative; background: var(--bg); color: var(--text); border-block-end: 1px solid var(--line); }
+  .page-head .wrap { position: relative; z-index: 1; }
+  .page-main { max-width: 42rem; padding-block: 2rem 3.6rem; }
+  @media (min-width: 900px) { .page-main { padding-block: 3rem 4.5rem; } }
+  .page-head h1 { font-size: clamp(2.1rem, 5.4vw, 3.6rem); }
+  .page-head .lead { margin-block-start: 1.3rem; font-size: 1.1rem; color: var(--muted); }
+</style>
