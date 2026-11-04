@@ -45,8 +45,9 @@ history, and the admin panel can edit the same files through the GitHub API.
 - `src/content/texts/site.json`: shared across all pages: company name (`brand`,
   shown in the footer), logo and its alt text, the Instagram / TikTok / WhatsApp
   links, the main navigation, the footer (closing call to action, photo, links), and
-  `endpoint`, the address the quiz POSTs leads to. While it is empty, the quiz shows
-  the thank-you screen but sends nothing.
+  `endpoint`, an optional override of the address the quiz POSTs leads to. Leave it
+  empty: the quiz sends leads through `src/scripts/lead-form.js` to the Worker named in
+  `src/scripts/api-base.js`.
 - `src/content/texts/services.json`, `about.json`, `contact.json`: the inner pages.
 - `src/content/pages/privacy.md`, `imprint.md`: legal pages in Markdown.
 - `src/content/horses/<slug>.md`: one file per horse. The front matter holds the facts
@@ -72,6 +73,22 @@ Photos are in `src/assets/horses/` (see
 AVIF, WebP and JPEG in several sizes during the build. Reference them from the JSON
 files with a path relative to that file, e.g.
 `"../../assets/horses/horse-grey-extended-trot.jpg"`.
+
+## Admin panel
+
+`/admin/` (not in the sitemap, disallowed in `robots.txt`, `noindex`). The owner logs in
+with the admin password and can read the quiz leads (CSV download included), add, edit,
+duplicate, hide, sell and delete horses with their photos, and edit every text file
+above through labelled fields. Each save is a commit on `main`; the panel then shows
+"publishing…" until `/version.json` on the live site reports that commit.
+
+- Code: `src/pages/admin/index.astro`, `src/scripts/admin/*.js`, `src/styles/admin.css`.
+- Its server is the Cloudflare Worker in `worker/` (see `worker/README.md`). The Worker's
+  address is set once in `src/scripts/api-base.js` (`PRODUCTION_API`), or at build
+  time with `PUBLIC_API_BASE`.
+- Locally: run `npx wrangler dev` in `worker/` with `ALLOWED_ORIGINS` including your
+  dev origin (e.g. `http://localhost:4321`), then `npm run dev`. A page on localhost
+  talks to `http://127.0.0.1:8787` automatically.
 
 ## How it is built
 

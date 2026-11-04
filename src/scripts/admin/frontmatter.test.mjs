@@ -1,0 +1,26 @@
+// Unit test for the front-matter reader/writer:  node src/scripts/admin/frontmatter.test.mjs
+import { parseFrontMatter, buildFrontMatter, valuesOf } from "./frontmatter.js";
+import fs from "node:fs";
+let fails = 0;
+const eq = (name, a, b) => { const ok = JSON.stringify(a) === JSON.stringify(b); if (!ok) fails++; console.log(`${ok ? "PASS" : "FAIL"}  ${name}${ok ? "" : `\n   got ${JSON.stringify(a)}\n   want ${JSON.stringify(b)}`}`); };
+const priv = fs.readFileSync(new URL("../../content/pages/privacy.md", import.meta.url), "utf8");
+const d = parseFrontMatter(priv);
+eq("round trip with no changes is byte-identical", buildFrontMatter(d, valuesOf(d), d.body), priv);
+eq("date stays unquoted", buildFrontMatter(d, { ...valuesOf(d), updated: "2026-12-01" }, d.body).includes("\nupdated: 2026-12-01\n"), true);
+const src = `---\nname: Duke # the horse\nprice: 85000\nphotos: ["a.jpg", 'b''s.jpg']\nnested:\n  a: 1\nflag: yes\ntitle: "He said \\"hi\\""\n---\nBody\n`;
+const x = parseFrontMatter(src); const v = valuesOf(x);
+eq("plain string, comment stripped", v.name, "Duke");
+eq("number", v.price, 85000);
+eq("inline list with both quote styles", v.photos, ["a.jpg", "b's.jpg"]);
+eq("nested map is not 'understood'", "nested" in v, false);
+eq("yes stays a string (YAML 1.2)", v.flag, "yes");
+eq("escaped double quotes", v.title, 'He said "hi"');
+const out = buildFrontMatter(x, { name: "Duke: the 2nd", photos: ["c.jpg"] }, "New body");
+eq("nested map kept byte for byte", out.includes("nested:\n  a: 1\n"), true);
+eq("changed string is safely quoted", out.includes('name: "Duke: the 2nd"'), true);
+eq("list written as block", out.includes('photos:\n  - "c.jpg"'), true);
+eq("re-parse gives the new values", valuesOf(parseFrontMatter(out)).name, "Duke: the 2nd");
+eq("removing a key", buildFrontMatter(x, { price: undefined }, "b").includes("price"), false);
+eq("new keys follow the given order", buildFrontMatter({ fields: [], body: "" }, { b: 1, a: 2 }, "", ["a", "b"]), "---\na: 2\nb: 1\n---\n");
+eq("line separator escaped", buildFrontMatter({ fields: [], body: "" }, { t: "x\u2028y" }, "").includes("\\u2028"), true);
+process.exit(fails);

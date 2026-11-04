@@ -75,7 +75,7 @@ export function preflight(origin: string): Response {
     headers: {
       ...SECURITY_HEADERS,
       "Access-Control-Allow-Origin": origin,
-      "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
       "Access-Control-Max-Age": "600",
       Vary: "Origin",
@@ -84,7 +84,7 @@ export function preflight(origin: string): Response {
 }
 
 /** Reads the request body, aborting as soon as it exceeds `limit` bytes. */
-export async function readBody(request: Request, limit: number): Promise<Uint8Array> {
+export async function readBody(request: Request | Response, limit: number): Promise<Uint8Array> {
   const declared = request.headers.get("Content-Length");
   if (declared !== null) {
     const n = Number(declared);

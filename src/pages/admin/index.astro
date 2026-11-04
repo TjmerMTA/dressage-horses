@@ -1,0 +1,78 @@
+---
+// /admin/ — the owner's panel. One static page; everything after login is plain
+// JavaScript (src/scripts/admin/) talking only to the Cloudflare Worker.
+// Not for search engines: noindex here, Disallow in robots.txt, filtered out of the sitemap.
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { API_BASE } from '../../scripts/api-base.js';
+import '../../styles/admin.css';
+
+// Production only (the dev server injects inline scripts): the page may load its own files
+// and talk to the Worker and nothing else, so even an injected script could not send the
+// session token anywhere.
+const origin = (u: string) => { try { return new URL(u).origin; } catch { return ''; } };
+const versionUrl = import.meta.env.PUBLIC_SITE_VERSION_URL || '';
+const csp = import.meta.env.PROD
+  ? [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' blob: data:",
+      `connect-src 'self' ${origin(API_BASE)} ${origin(versionUrl)}`.trim(),
+      "object-src 'none'",
+      "base-uri 'none'",
+      "form-action 'self'",
+    ].join('; ')
+  : null;
+---
+
+<BaseLayout title="Admin — Dressage horses" description="Site administration." bare>
+  <Fragment slot="head">
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    {csp && <meta http-equiv="Content-Security-Policy" content={csp} />}
+  </Fragment>
+
+  <header class="adm-bar">
+    <div class="wrap adm-bar-in">
+      <h1 class="adm-brand">Dressage horses <span>admin</span></h1>
+      <nav class="adm-nav" id="adm-nav" aria-label="Admin sections" hidden>
+        <a href="#/leads" data-view="leads">Leads <span class="adm-count" id="nav-new" hidden></span></a>
+        <a href="#/horses" data-view="horses">Horses</a>
+        <a href="#/texts" data-view="texts">Texts</a>
+      </nav>
+      <div class="adm-bar-end" id="adm-session" hidden>
+        <a class="adm-sitelink" href="/" target="_blank" rel="noopener">View site</a>
+        <button type="button" class="btn btn-ghost btn-sm" id="logout">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="adm-publish" id="publish-bar" role="status" aria-live="polite" hidden></div>
+
+  <main id="main" class="wrap adm-main" tabindex="-1">
+    <noscript><p class="adm-note">The admin panel needs JavaScript switched on.</p></noscript>
+
+    <section class="adm-login" id="login-view" aria-labelledby="login-h" hidden>
+      <!-- method=post and no name on the password: even with broken JS it never lands in a URL -->
+      <form class="adm-card adm-login-card" id="login-form" method="post" action="/admin/" novalidate>
+        <h2 id="login-h">Log in</h2>
+        <p class="adm-muted" id="login-reason"></p>
+        <input class="adm-pm-user" type="text" autocomplete="username" value="admin" tabindex="-1" aria-hidden="true" readonly />
+        <div class="adm-field">
+          <label for="login-password">Password</label>
+          <input id="login-password" type="password" autocomplete="current-password" required />
+        </div>
+        <p class="adm-err" id="login-error" role="alert"></p>
+        <button class="btn" type="submit" id="login-submit">Log in</button>
+      </form>
+    </section>
+
+    <div id="view"></div>
+  </main>
+
+  <div class="adm-toast" id="toast" role="status" aria-live="polite"></div>
+</BaseLayout>
+
+<script>
+  import '../../scripts/admin/main.js';
+</script>

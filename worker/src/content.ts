@@ -2,8 +2,8 @@
 
 import { Env, HttpError, json, mediaType, parseJsonObject, readBody, readJson } from "./http";
 import {
-  IMAGE_DIR, base64ToBytes, bytesToBase64, commitMessage, getContent, listDir, putContent,
-  validatePath, validateWritablePath,
+  IMAGE_DIR, base64ToBytes, bytesToBase64, commitMessage, deleteContent, getContent, getDeployStatus, getRaw,
+  listDir, putContent, validatePath, validateWritablePath,
 } from "./github";
 
 const PUT_BODY_LIMIT = 1024 * 1024;
@@ -106,4 +106,39 @@ export async function handleUpload(request: Request, env: Env): Promise<Response
     }
   }
   throw new HttpError(409, "could not pick a free file name, retry");
+}
+
+export async function handleDeleteContent(request: Request, env: Env): Promise<Response> {
+  const body = await readJson(request, 4 * 1024);
+  const path = validateWritablePath(body["path"]);
+  const sha = body["sha"];
+  if (typeof sha !== "string" || !SHA_RE.test(sha)) throw new HttpError(400, "invalid field: sha");
+  const message = commitMessage(body["message"], `admin: delete ${path}`);
+  return json({ ok: true, path, ...(await deleteContent(env, path, sha, message)) });
+}
+
+const RAW_LIMIT = 12 * 1024 * 1024;
+const MIME = { jpg: "image/jpeg", png: "image/png", webp: "image/webp" } as const;
+
+/** Image bytes from the photo folder, so the admin can show photos before the site is rebuilt. */
+export async function handleRaw(request: Request, env: Env): Promise<Response> {
+  const path = validatePath(new URL(request.url).searchParams.get("path"), { allowDir: false });
+  if (!path.startsWith(`${IMAGE_DIR}/`) || !/\.(jpe?g|png|webp)$/i.test(path)) throw new HttpError(403, "path not allowed");
+  const bytes = await getRaw(env, path, RAW_LIMIT);
+  const kind = sniffImage(bytes);
+  if (!kind) throw new HttpError(415, "not an image");
+  return new Response(bytes, {
+    headers: {
+      "Content-Type": MIME[kind],
+      "Cache-Control": "private, max-age=600",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'",
+    },
+  });
+}
+
+export async function handleDeployStatus(request: Request, env: Env): Promise<Response> {
+  const sha = new URL(request.url).searchParams.get("sha") || "";
+  if (!SHA_RE.test(sha)) throw new HttpError(400, "invalid sha");
+  return json({ ok: true, ...(await getDeployStatus(env, sha)) });
 }

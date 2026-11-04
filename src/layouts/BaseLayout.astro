@@ -13,9 +13,11 @@ interface Props {
   ogImage?: ImageMetadata | undefined;
   ogImageAlt?: string | undefined;
   ogType?: string | undefined;
+  /** Leave out the public contact band at the bottom (used by /admin/). */
+  bare?: boolean;
 }
 
-const { title, description, ogType = 'website' } = Astro.props;
+const { title, description, ogType = 'website', bare = false } = Astro.props;
 const site = await getSite();
 const home = await getHome();
 
@@ -49,7 +51,7 @@ const ogImageUrl = new URL(ogImage.src, Astro.site);
   <body>
     <a class="skip btn btn-sm" href="#main">{site.skipLink}</a>
     <slot />
-    <ContactBand />
+    {!bare && <ContactBand />}
     <slot name="after-footer" />
   </body>
 </html>
