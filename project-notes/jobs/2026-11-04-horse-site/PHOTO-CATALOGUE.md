@@ -1,0 +1,51 @@
+# Photo catalogue — prepared masters
+
+Masters are in `/Users/nazar/dressage-horses-photos/masters/` — 25 files, JPEG q82, sRGB, upright, no EXIF/XMP/GPS/ICC, long side capped at 2400 px (never enlarged).
+Originals come from `/Users/nazar/Downloads/` (all shot 2026-11-04).
+
+| New file | Source | Size (px) | Orientation | Best use | What is in the picture | Alt text |
+|---|---|---|---|---|---|---|
+| `horse-grey-extended-trot.jpg` | DSC_0843.jpg | 2400x1600 | landscape | hero (clearest dressage image), gallery | A light-grey horse in extended trot under saddle, ridden by a woman in a dark polo and helmet, on a sand arena with a green hedge behind. | Grey horse in extended trot, ridden by a woman in a navy polo on sand |
+| `horse-bay-white-blouse.jpg` | IMG_1444.JPG | 2400x1600 | landscape | hero (premium), about-block | A bay horse with a braided mane in a bridle stands among green trees while a smiling woman in a white blouse stands close beside it, shown in hand rather than ridden. | Smiling woman in a white blouse stands beside a braided bay horse among green trees |
+| `horse-black-autumn-fence.jpg` | 0P0A0294.JPEG | 2400x1601 | landscape | about-block (support), background | A black horse lowers its head to a young woman in a red jacket who raises a hand to stroke its face, with autumn trees and a wooden fence behind, no saddle. | Young woman in a red jacket gently strokes a black horse's face beside an autumn fence |
+| `horse-grey-golden-grass.jpg` | 0P0A0214.jpg | 2400x1601 | landscape | hero, about-block | A dapple-grey horse in a braided mane and bridle stands in warm low light beside a woman in a red jacket who rests a hand on its back, with golden grass behind. | Woman in a red jacket stands close to a dapple-grey horse beside golden grass |
+| `horse-grey-indoor-arena.jpg` | 0P0A0303.jpg | 2400x1601 | landscape | hero, background (calm, space for text); small photographer signature at bottom centre | A saddled grey horse with a braided mane bends its head to a rider in black with a helmet, who looks up at it in a bright indoor riding hall. | Rider in black and a saddled grey horse share a quiet moment indoors |
+| `horse-black-gentle-touch.jpg` | 0P0A0307.JPEG | 2400x1601 | landscape | gallery, about-block | The same black horse and woman in a red jacket as in the autumn-fence picture, here her hand rests under its muzzle, with autumn trees and a fence behind. | Woman in a red jacket touches the muzzle of a black horse among autumn trees |
+| `horse-bay-fence-trot.jpg` | IMG_1448.JPG | 2400x1599 | landscape | hero alternative, gallery | A bay horse with a white saddle pad trots with raised legs along a white arena fence under a rider in a blue-and-black top and helmet, against dark trees. | Bay horse trots with high steps along a white fence under a helmeted rider |
+| `horse-chestnut-indoor-trot.jpg` | DSC_9161.jpg | 2400x1600 | landscape | hero alternative, gallery | A chestnut horse with white leg wraps trots with lifted knees in a wooden indoor hall, ridden by a woman in a dark T-shirt and helmet, sand kicking up. | Chestnut horse in a lifted trot with a helmeted rider inside a riding hall |
+| `horse-bay-indoor-pat.jpg` | 0P0A1900.JPEG | 2400x1601 | landscape | gallery (darker, moody; another horse visible behind) | A rider in a black jacket and helmet leans forward on a bay horse and pats its neck in a dim indoor arena, while another horse and rider stand behind. | Rider in black leans forward to pat the neck of a bay horse indoors |
+| `horse-grey-sunny-trot.jpg` | DSC_0723.jpg | 1600x2400 | portrait | catalogue card, detail page | A light-grey horse trots across a pale sand arena under a rider in a dark top and helmet, with green pines, a small shelter and clouds behind. | Grey horse trots across a sunny sand arena with a rider, pine trees behind |
+| `horse-bay-red-jacket.jpg` | DSC_9342.jpg | 1600x2400 | portrait | catalogue card, about-block | A dark bay horse in a bridle stands side-on on a paved yard while a woman in a red jacket and tall boots rests a hand on its side, with bare trees behind. | Woman in a red jacket stands beside a dark bay horse on a paved yard |
+| `horse-bay-trot-portrait.jpg` | IMG_1451.JPG | 1600x2400 | portrait | catalogue card, detail page | A bay horse in a bridle trots with high knee action along a white arena fence under a rider in a blue-and-black top, shot upright against dark trees. | Bay horse in a high-stepping trot ridden by a woman in a helmet, white fence behind |
+| `horse-bay-smiling-woman.jpg` | IMG_7829.JPG | 1600x2400 | portrait | about-block, detail page | A smiling young woman in a black knit sweater stands in front of a tall bay horse with a braided mane, her head against its neck, with clipped green hedges behind. | Smiling woman in a black sweater stands beside a bay horse with a braided mane |
+| `horse-chestnut-misty-lane.jpg` | IMG_5521.JPG | 1280x853 | landscape | gallery, catalogue thumbnail | A saddled chestnut horse with a white blaze stands on a misty autumn lane while a woman in a cream top and tan breeches raises a hand to its muzzle. | Woman in cream touches the muzzle of a saddled chestnut horse on a misty lane |
+| `horse-chestnut-close-touch.jpg` | IMG_5522.JPG | 853x1280 | portrait | gallery, catalogue thumbnail | A close view of a woman in a cream top and tan breeches holding her hand near the face of a saddled chestnut horse in autumn mist. | Close view of a woman in cream with her hand at a chestnut horse's face |
+| `horse-chestnut-forest-blaze.jpg` | IMG_5523.JPG | 1280x853 | landscape | gallery, catalogue thumbnail | A saddled chestnut horse with a white blaze stands in a misty autumn forest lane while a woman in a riding helmet and cream top stands pressed against its head. | Woman in a riding helmet stands close to a chestnut horse in misty autumn woods |
+| `horse-chestnut-forest-gaze.jpg` | IMG_5524.JPG | 853x1280 | portrait | gallery, catalogue thumbnail | A woman in a riding helmet, cream top and tan breeches looks up at the face of a bridled chestnut horse among autumn trees. | Woman in a riding helmet looks up at a bridled chestnut horse among autumn trees |
+| `horse-chestnut-rider-lean.jpg` | IMG_5525.JPG | 1280x853 | landscape | gallery, catalogue thumbnail | A rider in a cream top and helmet sits on a chestnut horse standing still on an autumn lane and leans forward with her cheek against its neck. | Rider in a cream top leans forward against her chestnut horse's neck on an autumn lane |
+| `horse-chestnut-rider-embrace.jpg` | IMG_5526.JPG | 853x1280 | portrait | gallery, catalogue thumbnail | A rider in a cream top and helmet leans forward over the neck of her standing chestnut horse and hugs it on a misty autumn lane. | Rider in a helmet hugs the neck of a chestnut horse on a misty autumn lane |
+| `horse-chestnut-autumn-trot.jpg` | IMG_5528.JPG | 1280x864 | landscape | gallery, catalogue thumbnail | A chestnut horse with white leg wraps trots on a pale sand arena under a rider in a cream top and tan breeches, with golden grass and a red autumn tree behind. | Chestnut horse trots on a sand arena with a rider in cream, golden grass behind |
+| `horse-chestnut-tall-trees.jpg` | IMG_5529.JPG | 853x1280 | portrait | gallery, catalogue thumbnail | A chestnut horse trots on a sand arena under a rider in a cream top, between tall autumn conifers and golden grass in soft mist. | Chestnut horse trotting with a rider between tall autumn trees and golden grass |
+| `horse-chestnut-red-tree.jpg` | IMG_5530.JPG | 853x1280 | portrait | gallery, catalogue thumbnail | A chestnut horse trots with a raised foreleg under a rider in a cream top, with a red autumn tree on the left and golden grass behind. | Chestnut horse trotting with a rider beside a red autumn tree and golden grass |
+| `horse-chestnut-reeds-trot.jpg` | IMG_5531.JPG | 853x1280 | portrait | gallery, catalogue thumbnail | A chestnut horse in a bridle trots on a sand arena under a rider in a cream top and helmet, with golden grass and a red autumn tree on the right. | Chestnut horse in a bridle trotting with a rider in cream, red tree behind |
+| `horse-chestnut-field-ride.jpg` | IMG_5533.JPG | 853x1280 | portrait | gallery, catalogue thumbnail | A rider in a cream top and tan breeches sits on a chestnut horse standing in a field of golden grass, looking away into the misty distance. | Rider in a cream top on a chestnut horse standing in a field of golden grass |
+| `horse-chestnut-field-closeup.jpg` | IMG_5535.JPG | 853x1280 | portrait | gallery, catalogue thumbnail | A closer view of a rider in a helmet and cream top on a chestnut horse with a white blaze, in a misty field of golden grass. | Rider in a helmet on a white-blazed chestnut horse in a golden misty field |
+
+## Dropped (7 of 32)
+
+| Source | Why |
+|---|---|
+| IMG_1254.jpg | Screenshot of someone else's Instagram post (profile-avatar circle in the corner, photographer's watermark across the horse), 1125x1385. Not usable. |
+| IMG_1255.jpg | Same: another Instagram screenshot of the same bay-horse shoot, with the avatar circle and watermark. |
+| 0P0A0298.JPEG | Near-duplicate of 0P0A0294 (same black horse, same woman, same pose a moment later); kept 0P0A0294. |
+| 0P0A0306.jpg | Near-duplicate of 0P0A0303 (same grey horse and rider, tighter crop, same pose); kept 0P0A0303. |
+| DSC_9157.jpg | Near-duplicate of DSC_9161 (same chestnut horse, rider and hall, a stride apart); kept DSC_9161. |
+| IMG_5534.JPG | Near-duplicate of IMG_5533 (rider in the golden field, almost the same frame). |
+| IMG_5536.JPG | Near-duplicate of IMG_5535 (rider close-up in the golden field, almost the same frame). |
+
+Notes
+- No frame looked blurred at the 500 px review size; I did not measure sharpness at full size.
+- The 14 phone shots (IMG_55xx) are only 853x1280 / 1280x853, kept at native size. Fine for cards and gallery; too small for a hero or full-width banner.
+- 0P0A0303 (and the dropped 0P0A0306) carry a small photographer signature at bottom centre; the dropped Instagram screenshots carried a larger one. Crop or clear it before using 0P0A0303 as a hero.
+- IMG_6430.MOV is in Downloads but was not on the list; ignored.
+- I have not checked who owns the photos or whether the people shown agreed to web use.
