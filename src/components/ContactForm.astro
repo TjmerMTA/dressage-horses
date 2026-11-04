@@ -1,0 +1,229 @@
+---
+// The contact page's message form: name, phone or e-mail, a free-text message and the
+// consent box. It posts to the Worker like the quiz (src/scripts/send-message.js), and the
+// message lands in the admin's lead list as a lead of kind "message".
+//
+// The form needs JavaScript (the Worker takes JSON only). It is hidden in the HTML and
+// shown by a one-line script while the page is parsed, so it never pops in later and
+// moves the page; without JavaScript a short note says what to do instead.
+//
+// The wording lives here, in one place. It is not yet editable in the admin: moving it
+// into src/content/texts/contact.json needs a matching schema entry in
+// src/content.config.ts.
+import { MESSAGE_MAX } from '../scripts/send-message.js';
+
+const max = MESSAGE_MAX.toLocaleString('en-GB');
+const T = {
+  title: 'Write to us',
+  intro: 'A question about a horse, a tryout or how buying from abroad works? Write it down here. A member of our team reads every message and answers you personally.',
+  noScript: 'The message form needs JavaScript, which is switched off in this browser. Please switch it on and reload the page.',
+  name: 'Your name',
+  contact: 'Phone or e-mail',
+  contactHint: 'A phone number with country code, for example +32 470 12 34 56, or an e-mail address. We answer you there.',
+  message: 'Your message',
+  messageHint: `Up to ${max} characters.`,
+  consent: 'I agree that you keep my name, my contact details and my message in order to answer me. Details in the',
+  consentLink: 'privacy policy',
+  submit: 'SEND MESSAGE',
+  sending: 'Sending…',
+  thanksTitle: 'Thank you, {name}!',
+  thanksText: 'Your message has reached us. We will answer you at {contact}.',
+  another: 'Write another message',
+  errors: {
+    name: 'Please enter your name.',
+    contact: 'Please enter a phone number with country code, or an e-mail address.',
+    message: 'Please write your message.',
+    messageLong: `Please shorten your message: up to ${max} characters and 40 lines.`,
+    consent: 'Please tick the box, so that we may answer you.',
+    rateLimited: 'You have sent several messages in a short time. Please wait a few minutes and try again.',
+    network: 'We couldn’t reach our server. Please check your connection and try again.',
+    send: 'Your message could not be sent. Please try again in a few minutes, or use the quick quiz.',
+  },
+};
+const clientTexts = JSON.stringify({ errors: T.errors, sending: T.sending, submit: T.submit, thanksTitle: T.thanksTitle, thanksText: T.thanksText, max });
+---
+
+<section class="msg" id="message" aria-labelledby="msg-h">
+  <h2 id="msg-h">{T.title}</h2>
+  <p class="msg-intro">{T.intro}</p>
+  <noscript><p class="msg-nojs">{T.noScript}</p></noscript>
+
+  <form class="msg-form" id="msg-form" novalidate hidden data-t={clientTexts}>
+    <div class="field">
+      <label for="m-name">{T.name}</label>
+      <input id="m-name" name="name" type="text" autocomplete="name" maxlength="100" required aria-describedby="m-name-err" />
+      <p class="err" id="m-name-err"></p>
+    </div>
+    <div class="field">
+      <label for="m-contact">{T.contact}</label>
+      <input id="m-contact" name="contact" type="text" maxlength="200" required spellcheck="false" autocapitalize="off" aria-describedby="m-contact-hint m-contact-err" />
+      <p class="hint" id="m-contact-hint">{T.contactHint}</p>
+      <p class="err" id="m-contact-err"></p>
+    </div>
+    <div class="field">
+      <label for="m-message">{T.message}</label>
+      <textarea id="m-message" name="message" rows="6" maxlength={MESSAGE_MAX} required aria-describedby="m-message-hint m-message-err"></textarea>
+      <div class="hint-row">
+        <p class="hint" id="m-message-hint">{T.messageHint}</p>
+        <span class="count" id="m-count" aria-hidden="true">0 / {max}</span>
+      </div>
+      <p class="err" id="m-message-err"></p>
+    </div>
+    <div class="consent">
+      <input id="m-consent" name="consent" type="checkbox" required aria-describedby="m-consent-err" />
+      <label for="m-consent">{T.consent} <a href="/privacy/">{T.consentLink}</a>.</label>
+    </div>
+    <p class="err" id="m-consent-err"></p>
+    {/* Honeypot for bots: off-screen, out of the tab order and hidden from screen readers. */}
+    <div class="hp" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off" /></div>
+    <div class="msg-actions">
+      <button type="submit" class="btn" id="m-submit">{T.submit}</button>
+    </div>
+    <p class="msg-status" id="m-status" role="alert"></p>
+  </form>
+  <script is:inline>document.getElementById('msg-form').hidden = false;</script>
+
+  <div class="msg-thanks" id="msg-thanks" hidden>
+    <h3 id="msg-thanks-h" tabindex="-1"></h3>
+    <p id="msg-thanks-p"></p>
+    <button type="button" class="btn btn-ghost btn-sm" id="m-another">{T.another}</button>
+  </div>
+</section>
+
+<script>
+  import { MESSAGE_MAX, MESSAGE_MAX_LINES, normaliseMessage, sendMessage, validContact } from '../scripts/send-message.js';
+
+  type Texts = {
+    errors: Record<'name' | 'contact' | 'message' | 'messageLong' | 'consent' | 'rateLimited' | 'network' | 'send', string>;
+    sending: string; submit: string; thanksTitle: string; thanksText: string; max: string;
+  };
+  const OPENED_AT = Date.now(); // when the form was shown: the Worker drops bots that "type" in under 2 s
+
+  const form = document.getElementById('msg-form') as HTMLFormElement | null;
+  if (form) {
+    const T: Texts = JSON.parse(form.dataset.t || '{}');
+    const $ = <E extends HTMLElement>(id: string) => document.getElementById(id) as E;
+    const name = $<HTMLInputElement>('m-name');
+    const contact = $<HTMLInputElement>('m-contact');
+    const message = $<HTMLTextAreaElement>('m-message');
+    const consent = $<HTMLInputElement>('m-consent');
+    const submit = $<HTMLButtonElement>('m-submit');
+    const status = $<HTMLElement>('m-status');
+    const count = $<HTMLElement>('m-count');
+    const trap = form.elements.namedItem('website') as HTMLInputElement;
+
+    type Key = 'name' | 'contact' | 'message' | 'consent';
+    const fields: Record<Key, HTMLInputElement | HTMLTextAreaElement> = { name, contact, message, consent };
+    const errEl = (k: Key) => $<HTMLElement>(`m-${k}-err`);
+
+    // The rule for each field; '' means valid, otherwise the message to show.
+    const check: Record<Key, () => string> = {
+      name: () => (name.value.trim().length >= 2 ? '' : T.errors.name),
+      contact: () => (validContact(contact.value.trim()) ? '' : T.errors.contact),
+      message: () => {
+        const m = normaliseMessage(message.value);
+        if (!m) return T.errors.message;
+        return m.length > MESSAGE_MAX || m.split('\n').length > MESSAGE_MAX_LINES ? T.errors.messageLong : '';
+      },
+      consent: () => (consent.checked ? '' : T.errors.consent),
+    };
+    const show = (k: Key, text: string) => {
+      errEl(k).textContent = text;
+      if (text) fields[k].setAttribute('aria-invalid', 'true');
+      else fields[k].removeAttribute('aria-invalid');
+    };
+    // A field that is marked wrong is re-checked as it changes, and cleared once it is right.
+    (Object.keys(fields) as Key[]).forEach((k) => {
+      fields[k].addEventListener(k === 'consent' ? 'change' : 'input', () => {
+        if (fields[k].getAttribute('aria-invalid') === 'true') show(k, check[k]());
+      });
+    });
+
+    const updateCount = () => { count.textContent = `${message.value.length.toLocaleString('en-GB')} / ${T.max}`; };
+    message.addEventListener('input', updateCount);
+    updateCount();
+
+    const busy = (on: boolean) => {
+      submit.disabled = on;
+      submit.textContent = on ? T.sending : T.submit;
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      status.textContent = '';
+      let first: Key | null = null;
+      (Object.keys(fields) as Key[]).forEach((k) => {
+        const text = check[k]();
+        show(k, text);
+        if (text && !first) first = k;
+      });
+      if (first) { fields[first as Key].focus(); return; }
+
+      busy(true);
+      const result = await sendMessage({
+        name: name.value, contact: contact.value, message: message.value, consent: true, website: trap.value, ts: OPENED_AT,
+      });
+      busy(false);
+      if (result.ok) {
+        const who = name.value.trim();
+        const where = contact.value.trim();
+        $<HTMLElement>('msg-thanks-h').textContent = T.thanksTitle.replace('{name}', who);
+        $<HTMLElement>('msg-thanks-p').textContent = T.thanksText.replace('{contact}', where);
+        form.hidden = true;
+        $<HTMLElement>('msg-thanks').hidden = false;
+        $<HTMLElement>('msg-thanks-h').focus();
+        return;
+      }
+      const field = result.field as Key | undefined;
+      if (result.reason === 'invalid' && field && field in fields) {
+        show(field, field === 'message' ? T.errors.messageLong : T.errors[field]);
+        fields[field].focus();
+      } else if (result.reason === 'too-long') {
+        show('message', T.errors.messageLong);
+        message.focus();
+      } else {
+        status.textContent =
+          result.reason === 'rate-limited' ? T.errors.rateLimited : result.reason === 'network' ? T.errors.network : T.errors.send;
+      }
+    });
+
+    $<HTMLButtonElement>('m-another').addEventListener('click', () => {
+      message.value = '';
+      updateCount();
+      $<HTMLElement>('msg-thanks').hidden = true;
+      form.hidden = false;
+      message.focus();
+    });
+  }
+</script>
+
+<style>
+  .msg { padding: clamp(1.4rem, 4vw, 2.4rem); border: 1px solid var(--line); border-radius: 24px; background: var(--surface); box-shadow: 0 10px 40px rgba(41,19,5,.08); scroll-margin-block-start: 1.5rem; }
+  .msg h2 { font-size: clamp(1.5rem, 3.4vw, 2rem); margin-block-end: 0.7rem; }
+  .msg-intro { color: var(--muted); margin-block-end: 1.6rem; max-width: 36rem; }
+  .msg-nojs { padding: 0.9rem 1.1rem; border-radius: 14px; background: var(--accent-soft); }
+  .msg-form { display: grid; gap: 1rem; }
+  .field label { display: block; font-weight: 600; margin-block-end: 0.4rem; font-size: 0.95rem; }
+  .field input, .field textarea { display: block; width: 100%; min-height: 3.3rem; padding-block: 0.7rem; padding-inline: 1rem; border: 2px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); font: 1.05rem/1.45 var(--sans); }
+  .field textarea { min-height: 9.5rem; resize: vertical; }
+  .field input:hover, .field textarea:hover { border-color: var(--line-strong); }
+  .field input:focus, .field textarea:focus { border-color: var(--accent); outline: none; }
+  .field input:focus-visible, .field textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .field [aria-invalid="true"], .field [aria-invalid="true"]:focus { border-color: var(--err); }
+  .hint { font-size: 0.85rem; color: var(--muted); margin-block-start: 0.35rem; }
+  .hint-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 1rem; }
+  .count { font-size: 0.85rem; color: var(--muted); margin-block-start: 0.35rem; font-variant-numeric: tabular-nums; }
+  .err { font-size: 0.88rem; color: var(--err); margin-block-start: 0.35rem; }
+  .err:empty, .msg-status:empty { display: none; }
+  .consent { display: grid; grid-template-columns: 1.4rem 1fr; gap: 0.7rem; align-items: start; font-size: 0.9rem; color: var(--muted); }
+  .consent input { width: 1.25rem; height: 1.25rem; margin-block: 0.15rem 0; margin-inline: 0; accent-color: var(--accent); }
+  .consent input[aria-invalid="true"] { outline: 2px solid var(--err); outline-offset: 2px; }
+  .consent a { color: var(--accent-text); text-underline-offset: 3px; }
+  .hp { position: absolute; inset-inline-start: -10000px; width: 1px; height: 1px; overflow: hidden; }
+  .msg-actions { margin-block-start: 0.4rem; }
+  .msg-status { padding: 0.8rem 1.1rem; border-radius: 14px; background: #FBEDEC; color: var(--err); font-size: 0.95rem; }
+  .msg-thanks { padding-block: 0.4rem 0; }
+  .msg-thanks h3 { font-size: clamp(1.4rem, 3vw, 1.8rem); margin-block-end: 0.7rem; }
+  .msg-thanks h3:focus { outline: none; }
+  .msg-thanks p { color: var(--muted); margin-block-end: 1.4rem; overflow-wrap: anywhere; }
+</style>

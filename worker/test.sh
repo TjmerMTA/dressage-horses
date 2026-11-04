@@ -160,6 +160,74 @@ assert "csv is a download"                 has_header 'content-disposition: atta
 assert "csv neutralises formulas"          grep -qF "\"'=HYPERLINK(1)\"" "$TMP/body"
 assert "csv keeps phone numbers as typed"  grep -qF '"+32 470 12 34 56"' "$TMP/body"
 
+echo "== POST /lead, kind: message (the contact page's form)"
+# Bodies are written by node, so quotes, newlines and non-Latin text reach curl intact.
+TS="$TS" node -e '
+const fs=require("fs"),d=process.argv[1],ts=Number(process.env.TS);
+const base={kind:"message",name:"Mira Message",contact:"mira@example.org",consent:true,website:"",ts,page:"https://dev.siteboosty.com/contact/"};
+const w=(f,o)=>fs.writeFileSync(d+"/"+f,JSON.stringify(o));
+w("m-ok.json",{...base,message:"Hello,\r\nI am looking for a young mare.\r\n\r\n\r\n\r\nThank you!"});
+// Longest name, contact and page the API accepts, plus 1000 two-byte characters.
+w("m-cyr.json",{...base,name:"Ж".repeat(100),contact:"m".repeat(188)+"@example.org",message:"ж".repeat(1000),page:"https://dev.siteboosty.com/contact/?q="+"x".repeat(462)});
+w("m-evil.json",{...base,name:"Evil Formula",message:"=HYPERLINK(\"http://evil.example\",\"x\")\n<img src=x onerror=alert(1)>"});
+w("m-phone.json",{...base,name:"Phone Text",message:"+32 470 12 34 56"});
+w("m-long.json",{...base,name:"Too Long",message:"a".repeat(1001)});
+w("m-lines.json",{...base,name:"Many Lines",message:Array(41).fill("x").join("\n")});
+w("m-noconsent.json",{...base,name:"No Consent",consent:undefined,message:"Hi"});
+w("m-false.json",{...base,name:"False Consent",consent:false,message:"Hi"});
+w("m-nomsg.json",{...base,name:"No Message"});
+w("m-blank.json",{...base,name:"Blank Message",message:" \n\t \n "});
+w("m-ctrl.json",{...base,name:"Bell",message:"ring\u0007ring"});
+w("m-number.json",{...base,name:"Number",message:12345});
+w("m-quizfields.json",{...base,name:"Mixed",message:"Hi",region:"Europe"});
+w("m-quizmsg.json",{name:"Quiz With Text",region:"Asia",budget:"x",format:"y",contact:"+1 555 123 4567",message:"extra",ts});
+w("m-kind.json",{...base,kind:"admin",message:"Hi"});
+w("m-nocontact.json",{...base,contact:undefined,message:"Hi"});
+w("m-honeypot.json",{...base,name:"Message Bot",website:"http://spam",message:"buy now"});
+w("m-big.json",{...base,message:"ж".repeat(2100)});
+' "$TMP"
+lead_len() { node -e 'const j=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const l=j.leads.find(x=>x.name===process.argv[2]);console.log(l&&typeof l.message==="string"?l.message.length:-1)' "$TMP/body" "$1"; }
+lead_of() { node -e 'const j=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const l=j.leads.find(x=>x.name===process.argv[2]);const v=l==null?undefined:l[process.argv[3]];console.log(v===undefined?"<undefined>":typeof v==="object"?JSON.stringify(v):v)' "$TMP/body" "$1" "$2"; }
+check "valid message"                      200 '' -H "Origin: $ORIGIN" -H "$(ip 50)" -H "$JSON" --data-binary "@$TMP/m-ok.json" "$BASE/lead"
+assert "message reply is exactly {ok:true}" test "$(cat "$TMP/body")" = '{"ok":true}'
+check "1000 two-byte chars fit the 4 KB"   200 '{"ok":true}' -H "$(ip 50)" -H "$JSON" --data-binary "@$TMP/m-cyr.json" "$BASE/lead"
+check "formula and HTML in a message"      200 '{"ok":true}' -H "$(ip 50)" -H "$JSON" --data-binary "@$TMP/m-evil.json" "$BASE/lead"
+check "phone-like message text"            200 '{"ok":true}' -H "$(ip 50)" -H "$JSON" --data-binary "@$TMP/m-phone.json" "$BASE/lead"
+check "message of 1001 chars"              400 'invalid field: message' -H "$(ip 51)" -H "$JSON" --data-binary "@$TMP/m-long.json" "$BASE/lead"
+check "message of 41 lines"                400 'invalid field: message' -H "$(ip 51)" -H "$JSON" --data-binary "@$TMP/m-lines.json" "$BASE/lead"
+check "message without consent"            400 'missing field: consent' -H "$(ip 51)" -H "$JSON" --data-binary "@$TMP/m-noconsent.json" "$BASE/lead"
+check "message with consent false"         400 'invalid field: consent' -H "$(ip 51)" -H "$JSON" --data-binary "@$TMP/m-false.json" "$BASE/lead"
+check "message kind without text"          400 'missing field: message' -H "$(ip 51)" -H "$JSON" --data-binary "@$TMP/m-nomsg.json" "$BASE/lead"
+check "message of only blanks"             400 'missing field: message' -H "$(ip 52)" -H "$JSON" --data-binary "@$TMP/m-blank.json" "$BASE/lead"
+check "control character in message"      400 'invalid field: message' -H "$(ip 52)" -H "$JSON" --data-binary "@$TMP/m-ctrl.json" "$BASE/lead"
+check "message that is not a string"       400 'invalid field: message' -H "$(ip 52)" -H "$JSON" --data-binary "@$TMP/m-number.json" "$BASE/lead"
+check "message with a quiz answer"         400 'invalid field: region' -H "$(ip 52)" -H "$JSON" --data-binary "@$TMP/m-quizfields.json" "$BASE/lead"
+check "quiz lead with a message"           400 'invalid field: message' -H "$(ip 52)" -H "$JSON" --data-binary "@$TMP/m-quizmsg.json" "$BASE/lead"
+check "unknown kind"                       400 'invalid field: kind' -H "$(ip 53)" -H "$JSON" --data-binary "@$TMP/m-kind.json" "$BASE/lead"
+check "message without contact"            400 'missing field: contact' -H "$(ip 53)" -H "$JSON" --data-binary "@$TMP/m-nocontact.json" "$BASE/lead"
+check "message honeypot → silent ok"       200 '{"ok":true}' -H "$(ip 53)" -H "$JSON" --data-binary "@$TMP/m-honeypot.json" "$BASE/lead"
+check "message in 0 s → silent ok"         200 '{"ok":true}' -H "$(ip 53)" -H "$JSON" \
+  -d "{\"kind\":\"message\",\"name\":\"Fast Message Bot\",\"contact\":\"+1 555 123 4567\",\"consent\":true,\"message\":\"buy now\",\"ts\":$(( $(date +%s) * 1000 ))}" "$BASE/lead"
+check "message body over 4 KB"             413 'too large' -H "$(ip 53)" -H "$JSON" --data-binary "@$TMP/m-big.json" "$BASE/lead"
+check "6th message in 10 min from one IP"  429 'too many' -H "$(ip 53)" -H "$JSON" --data-binary "@$TMP/m-ok.json" "$BASE/lead"
+
+check "leads list with the messages"       200 '"count":7' -H "$AUTH" "$BASE/admin/leads"
+assert "message lead has kind message"     test "$(lead_of 'Mira Message' kind)" = "message"
+assert "line ends normalised, blanks cut"  test "$(lead_of 'Mira Message' message | od -c | tr -s ' ' | tr -d '\n')" = "$(printf 'Hello,\nI am looking for a young mare.\n\nThank you!\n' | od -c | tr -s ' ' | tr -d '\n')"
+assert "message lead has no quiz answers"  test "$(lead_of 'Mira Message' region)" = "<undefined>"
+assert "message lead keeps the consent"    test "$(lead_of 'Mira Message' consent)" = "true"
+assert "1000-char message stored whole"    test "$(lead_len "$(node -e 'console.log("Ж".repeat(100))')")" = "1000"
+assert "HTML kept as inert text in JSON"   test "$(lead_of 'Evil Formula' message | tail -1)" = '<img src=x onerror=alert(1)>'
+assert "leads answer is JSON, not HTML"    has_header 'content-type: application/json'
+assert "quiz lead is kind quiz"            test "$(lead_of 'Anna First' kind)" = "quiz"
+assert "message bots were not stored"      bash -c "! grep -q 'Message Bot' '$TMP/body'"
+check "csv with the messages"              200 'contact,kind' -H "$AUTH" "$BASE/admin/leads.csv"
+assert "csv has kind and message columns"  bash -c "tr -d '\357\273\277' < '$TMP/body' | head -1 | grep -qF 'created_at,name,contact,kind,region,budget,format,message,consent'"
+assert "csv marks quiz rows as quiz"       grep -qF '"Anna First","+32 470 12 34 56","quiz"' "$TMP/body"
+assert "csv neutralises a message formula" grep -qF "\"'=HYPERLINK(\"\"http://evil.example\"\",\"\"x\"\")" "$TMP/body"
+assert "csv neutralises phone-like text"   grep -qF "\"message\",\"\",\"\",\"\",\"'+32 470 12 34 56\"" "$TMP/body"
+assert "csv keeps the message's lines"     bash -c "grep -qF 'I am looking for a young mare.' '$TMP/body' && grep -qF '\"Hello,' '$TMP/body'"
+
 echo "== GET /admin/content"
 check "content without session"           401 'session' "$BASE/admin/content?path=src/content/texts/home.json"
 check "read a text file"                   200 '"sha"' -H "$AUTH" "$BASE/admin/content?path=src/content/texts/home.json"
