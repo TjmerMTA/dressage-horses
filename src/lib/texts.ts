@@ -37,3 +37,9 @@ export async function getContact() {
 export function quizHref(pathname: string) {
   return pathname === '/' ? '#quiz' : '/#quiz';
 }
+
+export async function getCatalogue() {
+  const entry = await getEntry('catalogue', 'catalogue');
+  if (!entry) throw new Error('src/content/texts/catalogue.json is missing');
+  return entry.data;
+}
