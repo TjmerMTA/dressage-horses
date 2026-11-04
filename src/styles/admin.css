@@ -125,6 +125,10 @@ strong + .adm-badge { margin-inline-start: 0.5rem; }
 .adm-photo-img { position: relative; }
 .adm-photo-img img { display: block; inline-size: 100%; block-size: 8rem; object-fit: cover; background: var(--line); }
 .adm-photo-img .adm-badge.new { position: absolute; inset-block-end: 0.4rem; inset-inline-start: 0.4rem; }
+.adm-photo-alt { padding: 0.6rem 0.6rem 0; }
+.adm-photo-alt label { font-size: 0.82rem; }
+.adm-photo-alt input { min-block-size: 2.6rem !important; font-size: 0.9rem !important; }
+.adm-photos { grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); }
 .adm-photo-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; padding: 0.5rem 0.6rem; }
 
 .adm-icon { min-inline-size: 2.4rem; min-block-size: 2.4rem; border-radius: 10px; border: 1.5px solid var(--line-strong); background: var(--surface); color: var(--text); font: 700 1rem var(--sans); cursor: pointer; }

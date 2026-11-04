@@ -23,12 +23,17 @@ export const BREEDS = ["KWPN", "Hanoverian", "Oldenburg", "Westphalian", "Trakeh
 /** Front-matter keys of a horse, in the order they are written. */
 export const HORSE_KEYS = [
   "name", "slug", "price", "priceOnRequest", "currency", "year", "height", "sex", "colour", "breed",
-  "country", "level", "sire", "dam", "damsire", "xrays", "video", "photos", "sold", "featured", "published",
+  "country", "level", "sire", "dam", "damsire", "xrays", "video", "photos", "photoAlt", "listed",
+  "sold", "featured", "published",
 ];
+/** Schema defaults (src/content.config.ts): a key at its default is left out of a new file. */
+export const HORSE_DEFAULTS = { priceOnRequest: false, currency: "EUR", sold: false, featured: false, published: true };
+export const MIN_YEAR = 1990;
 
 /** Friendly names for text files; unknown files get a name made from the file name. */
 export const TEXT_FILE_LABELS = {
   "site.json": "Company, contacts & menus",
+  "catalogue.json": "Horse catalogue pages",
   "home.json": "Home page",
   "services.json": "Services page",
   "about.json": "About page",
@@ -36,7 +41,7 @@ export const TEXT_FILE_LABELS = {
   "privacy.md": "Privacy policy",
   "imprint.md": "Imprint",
 };
-export const TEXT_FILE_ORDER = ["site.json", "home.json", "services.json", "about.json", "contact.json", "privacy.md", "imprint.md"];
+export const TEXT_FILE_ORDER = ["site.json", "home.json", "catalogue.json", "services.json", "about.json", "contact.json", "privacy.md", "imprint.md"];
 
 /** Keys in the text files that are technical and not shown (dotted paths, [] = any index). */
 export const HIDDEN_TEXT_KEYS = new Set([

@@ -4,20 +4,27 @@ import { getImage } from 'astro:assets';
 import ContactBand from '../components/ContactBand.astro';
 import { getHome, getSite } from '../lib/texts';
 
+import type { ImageMetadata } from 'astro';
+
 interface Props {
   title: string;
   description: string;
+  /** Social preview image; the hero photograph when left out. */
+  ogImage?: ImageMetadata | undefined;
+  ogImageAlt?: string | undefined;
+  ogType?: string | undefined;
   /** Leave out the public contact band at the bottom (used by /admin/). */
   bare?: boolean;
 }
 
-const { title, description, bare = false } = Astro.props;
+const { title, description, ogType = 'website', bare = false } = Astro.props;
 const site = await getSite();
 const home = await getHome();
 
 const canonical = new URL(Astro.url.pathname, Astro.site);
-// Social preview image: the hero photograph as a 1200 px JPEG.
-const ogImage = await getImage({ src: home.hero.photo, width: 1200, format: 'jpg' });
+// Social preview image: the page's own photograph, or the hero photograph, as a 1200 px JPEG.
+const ogImage = await getImage({ src: Astro.props.ogImage ?? home.hero.photo, width: 1200, format: 'jpg' });
+const ogImageAlt = Astro.props.ogImage ? Astro.props.ogImageAlt ?? title : home.hero.photoAlt;
 const ogImageUrl = new URL(ogImage.src, Astro.site);
 ---
 
@@ -32,12 +39,12 @@ const ogImageUrl = new URL(ogImage.src, Astro.site);
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="sitemap" href="/sitemap-index.xml" />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={ogType} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImageUrl} />
-    <meta property="og:image:alt" content={home.hero.photoAlt} />
+    <meta property="og:image:alt" content={ogImageAlt} />
     <meta name="twitter:card" content="summary_large_image" />
     <slot name="head" />
   </head>

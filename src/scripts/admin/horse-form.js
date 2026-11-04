@@ -1,7 +1,7 @@
 // Add / edit / duplicate one horse. Writes src/content/horses/<slug>.md through the Worker.
 import { ApiError, listDir, photoUrl, readFile, uploadPhoto, writeFile } from "./api.js";
 import {
-  BREEDS, COLOURS, COUNTRY, HORSE_KEYS, HORSES_DIR, LEVEL, REPO_URL, SEX, XRAYS,
+  BREEDS, COLOURS, COUNTRY, HORSE_DEFAULTS, HORSE_KEYS, HORSES_DIR, LEVEL, MIN_YEAR, REPO_URL, SEX, XRAYS,
 } from "./config.js";
 import { buildFrontMatter, parseFrontMatter, valuesOf } from "./frontmatter.js";
 import { preparePhoto, refToRepoPath } from "./photos.js";
@@ -61,9 +61,12 @@ export async function renderHorseForm(root, { mode, slug }) {
   const extras = doc.fields.filter((f) => f.key && !HORSE_KEYS.includes(f.key)).map((f) => f.key);
 
   if (mode === "duplicate") {
-    doc = { fields: doc.fields.filter((f) => !HORSE_KEYS.includes(f.key)), body: doc.body, hadFrontMatter: true };
-    v = { ...v, name: `${v.name || "Horse"} (copy)`, published: false, sold: false, featured: false };
+    // A copy is a new, real horse: not a sample, not on the site yet, listed today.
+    doc = { fields: doc.fields.filter((f) => f.key && !HORSE_KEYS.includes(f.key) && f.key !== "sample"), body: doc.body, hadFrontMatter: true };
+    v = { ...v, name: `${v.name || "Horse"} (copy)`, published: false, sold: false, featured: false, listed: undefined };
   }
+  const hasKey = (k) => doc.fields.some((f) => f.key === k);
+  const today = new Date().toISOString().slice(0, 10);
   const fileSlug = mode === "edit" ? slug : "";
   const description = doc.body.replace(/^\n+/, "").replace(/\s+$/, "");
 
@@ -77,7 +80,7 @@ export async function renderHorseForm(root, { mode, slug }) {
   const onRequest = h("input", { type: "checkbox", checked: v.priceOnRequest === true });
   mk("price", "Price in euros", h("input", { type: "text", inputmode: "numeric", value: Number.isFinite(v.price) ? String(v.price) : "", autocomplete: "off", disabled: v.priceOnRequest === true }),
     "Whole euros, for example 85000 or 85 000.");
-  mk("year", "Year of birth", h("input", { type: "number", min: 1995, max: THIS_YEAR, step: 1, value: Number.isFinite(v.year) ? String(v.year) : "" }));
+  mk("year", "Year of birth", h("input", { type: "number", min: MIN_YEAR, max: THIS_YEAR, step: 1, value: Number.isFinite(v.year) ? String(v.year) : "" }));
   mk("height", "Height (cm)", h("input", { type: "number", min: 120, max: 200, step: 1, value: Number.isFinite(v.height) ? String(v.height) : "" }), "At the withers, for example 168.");
   mk("sex", "Sex", select(SEX, v.sex, "Choose…"));
   const colourList = nextId("colours");
@@ -90,6 +93,8 @@ export async function renderHorseForm(root, { mode, slug }) {
   mk("sire", "Sire (father)", h("input", { type: "text", value: v.sire || "", autocomplete: "off", maxlength: 80 }));
   mk("dam", "Dam (mother)", h("input", { type: "text", value: v.dam || "", autocomplete: "off", maxlength: 80 }));
   mk("damsire", "Damsire (mother’s father)", h("input", { type: "text", value: v.damsire || "", autocomplete: "off", maxlength: 80 }));
+  mk("listed", "On sale since", h("input", { type: "date", value: /^\d{4}-\d{2}-\d{2}$/.test(String(v.listed || "")) ? String(v.listed) : (mode === "edit" ? "" : today), max: today }),
+    "Used for the “Newest” sort on the site.");
   mk("video", "Video link (optional)", h("input", { type: "url", value: v.video || "", autocomplete: "off", placeholder: "https://www.youtube.com/watch?v=…" }), "A YouTube or Vimeo address.");
   mk("description", "Description", h("textarea", { rows: 9, maxlength: 10000 }, description),
     "Shown on the horse’s page. Empty line = new paragraph. **bold** for bold.");
@@ -110,7 +115,21 @@ export async function renderHorseForm(root, { mode, slug }) {
 
   // ---- photos ------------------------------------------------------------------------
   /** @type {{id:string, kind:"existing"|"new", ref?:string, blob?:Blob, url?:string, label:string}[]} */
-  let photos = (Array.isArray(v.photos) ? v.photos : []).map((ref) => ({ id: nextId("p"), kind: "existing", ref: String(ref), label: String(ref).split("/").pop() }));
+  // Alt texts travel with their photo. A file without them gets the wording the site would
+  // generate (src/lib/horses.ts), so the person sees it and can make it better.
+  const givenAlt = Array.isArray(v.photoAlt) ? v.photoAlt : [];
+  const sexWord = (SEX.find(([k]) => k === v.sex) || [, ""])[1].toLowerCase();
+  const fallbackAlt = (i, n) => {
+    if (!v.name) return "";
+    const age = Number.isFinite(v.year) ? `${THIS_YEAR - v.year}-year-old ` : "";
+    const base = `${v.name}, ${age}${v.colour ? `${v.colour} ` : ""}${sexWord}`.trim();
+    return n > 1 ? `${base} — photo ${i + 1} of ${n}` : base;
+  };
+  const refs = Array.isArray(v.photos) ? v.photos : [];
+  let photos = refs.map((ref, i) => ({
+    id: nextId("p"), kind: "existing", ref: String(ref), label: String(ref).split("/").pop(),
+    alt: typeof givenAlt[i] === "string" && givenAlt[i].trim() ? givenAlt[i] : fallbackAlt(i, refs.length),
+  }));
   const photoErr = h("p", { class: "adm-err", id: nextId("photos-err") });
   const photoList = h("ol", { class: "adm-photos", "aria-label": "Photos, in order. The first is the cover." });
   const fileInput = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp", multiple: true, class: "sr-only", id: nextId("file") });
@@ -118,7 +137,7 @@ export async function renderHorseForm(root, { mode, slug }) {
     h("p", {}, "Drag photos here, or "),
     h("label", { for: fileInput.id, class: "btn btn-ghost btn-sm" }, "Choose photos"),
     fileInput,
-    h("p", { class: "adm-hint" }, "JPEG, PNG or WebP. Big photos are shrunk to 2400 px before upload. The first photo is the cover."));
+    h("p", { class: "adm-hint" }, "JPEG, PNG or WebP. Big photos are shrunk to 2400 px before upload. The first photo is the cover. Say in a few words what each photo shows."));
   const live = h("p", { class: "sr-only", "aria-live": "polite" });
 
   const move = (i, to) => {
@@ -135,6 +154,12 @@ export async function renderHorseForm(root, { mode, slug }) {
     if (btn) btn.focus();
   };
   let dragIndex = -1;
+  const altField = (p, i) => {
+    const input = h("input", { type: "text", value: p.alt || "", maxlength: 200, autocomplete: "off", placeholder: "e.g. Grey mare in extended trot on a sand arena",
+      dataset: { alt: p.id }, oninput: (e) => { p.alt = e.target.value; e.target.removeAttribute("aria-invalid"); } });
+    return h("div", { class: "adm-field adm-photo-alt" },
+      h("label", { for: (input.id = nextId("alt")) }, `What is in photo ${i + 1}?`), input);
+  };
   const drawPhotos = () => {
     photoList.replaceChildren(...photos.map((p, i) => {
       const img = h("img", { alt: `Photo ${i + 1}${i === 0 ? " (cover)" : ""}`, width: 160, height: 120, loading: "lazy" });
@@ -144,6 +169,7 @@ export async function renderHorseForm(root, { mode, slug }) {
         h("div", { class: "adm-photo-img" }, img,
           i === 0 ? h("span", { class: "adm-badge cover" }, "Cover") : null,
           p.kind === "new" ? h("span", { class: "adm-badge new" }, "Not uploaded yet") : null),
+        altField(p, i),
         h("div", { class: "adm-photo-tools" },
           h("button", { type: "button", class: "adm-icon", "data-act": "up", "aria-label": `Move photo ${i + 1} earlier`, disabled: i === 0, onclick: () => move(i, i - 1) }, "←"),
           h("button", { type: "button", class: "adm-icon", "data-act": "down", "aria-label": `Move photo ${i + 1} later`, disabled: i === photos.length - 1, onclick: () => move(i, i + 1) }, "→"),
@@ -186,7 +212,7 @@ export async function renderHorseForm(root, { mode, slug }) {
     for (const f of list) {
       const r = await preparePhoto(f);
       if (!r.ok) { problems.push(r.message); continue; }
-      photos.push({ id: nextId("p"), kind: "new", blob: r.blob, url: URL.createObjectURL(r.blob), label: f.name || "photo" });
+      photos.push({ id: nextId("p"), kind: "new", blob: r.blob, url: URL.createObjectURL(r.blob), label: f.name || "photo", alt: "" });
       dirty = true;
     }
     drawPhotos();
@@ -216,7 +242,7 @@ export async function renderHorseForm(root, { mode, slug }) {
     summary,
     unsupported.length ? h("p", { class: "adm-warn" }, `This file has ${unsupported.join(", ")} written in a way the panel can't edit safely, so saving is switched off. Change it on GitHub: `,
       h("a", { href: `${REPO_URL}/blob/main/${HORSES_DIR}/${slug}.md`, target: "_blank", rel: "noopener" }, "open the file")) : null,
-    section("Basics", grid(F.name.wrap, F.slug.wrap),
+    section("Basics", grid(F.name.wrap, F.slug.wrap, F.listed.wrap),
       check(published, "Published", "Visible on the website."),
       check(featured, "Featured", "Shown in the “featured horses” strip on the home page."),
       check(sold, "Sold", "Stays on the site with a “Sold” ribbon.")),
@@ -258,7 +284,7 @@ export async function renderHorseForm(root, { mode, slug }) {
     set("price", onRequest.checked ? "" : !Number.isFinite(price) ? "Enter the price as a whole number of euros, or tick “Price on request”."
       : price < 1000 || price > 20_000_000 ? "That price looks wrong. Enter it in euros, for example 85000." : "");
     const year = intIn(F.year.input.value);
-    set("year", !Number.isFinite(year) || year < 1995 || year > THIS_YEAR ? `Enter the year of birth, between 1995 and ${THIS_YEAR}.` : "");
+    set("year", !Number.isFinite(year) || year < MIN_YEAR || year > THIS_YEAR ? `Enter the year of birth, between ${MIN_YEAR} and ${THIS_YEAR}.` : "");
     const height = intIn(F.height.input.value);
     set("height", !Number.isFinite(height) || height < 120 || height > 200 ? "Enter the height in centimetres, between 120 and 200." : "");
     for (const [key, label] of [["sex", "the sex"], ["country", "the country"], ["level", "the level"], ["xrays", "the X-ray result"]]) {
@@ -276,8 +302,19 @@ export async function renderHorseForm(root, { mode, slug }) {
       } catch { videoErr = "This doesn’t look like a web address. Copy it from the browser’s address bar."; }
     }
     set("video", videoErr);
-    photoErr.textContent = published.checked && photos.length === 0 ? "A published horse needs at least one photo. The first one is the cover." : photoErr.textContent;
-    if (published.checked && photos.length === 0) errs.push([fileInput, photoErr.textContent]);
+    if (photos.length === 0) {
+      photoErr.textContent = "Add at least one photo. The first one is the cover.";
+      errs.push([fileInput, photoErr.textContent]);
+    }
+    photos.forEach((p, i) => {
+      const input = photoList.querySelector(`[data-alt="${p.id}"]`);
+      if (!String(p.alt || "").trim() && input) {
+        input.setAttribute("aria-invalid", "true");
+        errs.push([input, `Describe photo ${i + 1} in a few words — blind visitors and Google rely on it.`]);
+      }
+    });
+    const listed = F.listed.input.value;
+    set("listed", listed && (!/^\d{4}-\d{2}-\d{2}$/.test(listed) || listed > today) ? "Choose a date that isn’t in the future." : "");
     return { errs, name, slug: mode === "edit" ? fileSlug : s, price, year, height, video };
   };
 
@@ -311,12 +348,14 @@ export async function renderHorseForm(root, { mode, slug }) {
 
       // 2. The horse file.
       progress.textContent = "Saving the horse…";
+      // A key at its schema default is written only if the file already has it (keeps files like Boris's).
+      const opt = (k, val) => (hasKey(k) || val !== HORSE_DEFAULTS[k] ? val : undefined);
       const updates = {
         name: r.name,
         slug: r.slug,
         price: onRequest.checked ? undefined : r.price,
-        priceOnRequest: onRequest.checked,
-        currency: typeof v.currency === "string" && v.currency ? v.currency : "EUR",
+        priceOnRequest: opt("priceOnRequest", onRequest.checked),
+        currency: opt("currency", typeof v.currency === "string" && /^[A-Z]{3}$/.test(v.currency) ? v.currency : "EUR"),
         year: r.year,
         height: r.height,
         sex: F.sex.input.value,
@@ -330,9 +369,11 @@ export async function renderHorseForm(root, { mode, slug }) {
         xrays: F.xrays.input.value,
         video: r.video || undefined,
         photos: photos.map((p) => p.ref),
-        sold: sold.checked,
-        featured: featured.checked,
-        published: published.checked,
+        photoAlt: photos.map((p) => String(p.alt).trim()),
+        listed: F.listed.input.value || (mode === "edit" ? undefined : today),
+        sold: opt("sold", sold.checked),
+        featured: opt("featured", featured.checked),
+        published: opt("published", published.checked),
       };
       const text = buildFrontMatter(doc, updates, F.description.input.value.trim(), HORSE_KEYS);
       const path = `${HORSES_DIR}/${r.slug}.md`;

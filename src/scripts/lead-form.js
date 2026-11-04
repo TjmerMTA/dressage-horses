@@ -8,6 +8,7 @@
 //     whatsapp,                        // or `contact`: phone with country code, or an e-mail
 //     consent: true,                   // the consent checkbox
 //     website: honeypotInput.value,    // a hidden <input name="website"> real people never fill
+//     page: location.href,             // optional: the address to record (default: the current one)
 //   });
 //   if (result.ok) showThanks();
 //   else showError(result.message);    // a sentence you can show to the visitor as is
@@ -37,7 +38,7 @@ const str = (v) => (typeof v === "string" ? v.trim() : "");
 
 /**
  * @param {{region?:string,budget?:string,format?:string,name?:string,contact?:string,whatsapp?:string,
- *          consent?:boolean,website?:string,ts?:number}} answers
+ *          consent?:boolean,website?:string,ts?:number,page?:string}} answers
  * @param {{endpoint?:string, timeoutMs?:number}} [options]
  * @returns {Promise<{ok:true}|{ok:false,reason:string,message:string,field?:string}>}
  */
@@ -60,7 +61,8 @@ export async function sendLead(answers, options = {}) {
   };
   if (a.consent === true) payload.consent = true;
   try {
-    const href = location.href.length <= 500 ? location.href : location.origin + location.pathname;
+    const wanted = typeof a.page === "string" && /^https?:\/\//.test(a.page) ? a.page : location.href;
+    const href = wanted.length <= 500 ? wanted : location.origin + location.pathname;
     payload.page = href.slice(0, 500);
     const q = new URLSearchParams(location.search);
     for (const k of TRACKING) {

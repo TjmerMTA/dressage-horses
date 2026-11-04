@@ -12,13 +12,14 @@ components, and the inner pages reuse its styles.
 
 | URL | Source |
 |---|---|
-| `/` | `src/pages/index.astro`: hero, the 4-step quiz, how it works, services |
+| `/` | `src/pages/index.astro`: hero, four featured horses, the 4-step quiz, how it works, services |
 | `/services/` | `src/pages/services.astro` + `src/content/texts/services.json` |
 | `/about/` | `src/pages/about.astro` + `src/content/texts/about.json` |
 | `/contact/` | `src/pages/contact.astro` + `src/content/texts/contact.json` |
 | `/privacy/` | `src/content/pages/privacy.md` |
 | `/imprint/` | `src/content/pages/imprint.md` |
-| `/horses/` | linked from the navigation; built by the catalogue piece |
+| `/horses/` | `src/pages/horses/index.astro`: the catalogue with filters + `src/content/texts/catalogue.json` |
+| `/horses/<slug>/` | `src/pages/horses/[slug].astro`: one page per horse in `src/content/horses/` |
 
 ## Run it locally
 
@@ -49,6 +50,19 @@ history, and the admin panel can edit the same files through the GitHub API.
   `src/scripts/api-base.js`.
 - `src/content/texts/services.json`, `about.json`, `contact.json`: the inner pages.
 - `src/content/pages/privacy.md`, `imprint.md`: legal pages in Markdown.
+- `src/content/horses/<slug>.md`: one file per horse. The front matter holds the facts
+  (`name`, `slug`, `price` or `priceOnRequest: true`, `year` of birth, `height` in cm,
+  `sex`, `colour`, `breed`, `country`, `level`, `sire`, `dam`, `damsire`, `xrays`,
+  optional `video`, `photos` with the cover first, optional `photoAlt` in the same order,
+  optional `listed` date for the "Newest" sort) and the switches `sold`, `featured` and
+  `published`. The Markdown below it is the description. `published: false` removes the
+  horse from the whole site: no card, no page. The age is computed at build time.
+  Horses marked `sample: true` are demo horses shipped with the site; delete those files
+  (including `sample-unpublished.md`, which only tests the unpublished filter) when the
+  real horses are in.
+- `src/content/texts/catalogue.json`: every text of the catalogue, the horse pages, the
+  home-page strip and the quiz's "Your enquiry is about …" line; also the price steps of
+  the price filter.
 
 Every file is validated at build time by the schemas in `src/content.config.ts`. A
 missing field or a mistyped key fails the build with a message naming the field, so

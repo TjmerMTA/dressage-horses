@@ -1,28 +1,33 @@
 # Status
 
-Notebook v1 — updated 2026-11-04 14:10
+Notebook v1 — updated 2026-11-04 14:55
 
-**Last time:** the job started today; the mock-up and 32 photographs were read, the
-project and its notebook were created, three members are building.
-**Waiting on you:** (1) Photos is asking you to trust its folder — answer in its own
-block; (2) creating the GitHub repository is blocked by the permission guard, so you
-have to allow it or run `gh repo create` yourself.
-**Next:** merge the landing, then the catalogue and the admin panel, then speed, then
-blind acceptance.
+**Last time:** the site went live on https://dev.siteboosty.com — landing, five inner
+pages and a catalogue of 8 sample horses. Lighthouse on the live domain: 100/100/100/100
+on the home page (mobile and desktop), 96–97 performance on the catalogue pages.
+**Waiting on you:** the two Cloudflare secrets (`ADMIN_PASSWORD_HASH`, `GITHUB_TOKEN`) —
+without them the admin panel cannot log in or save.
+**Next:** Viktor finishes the admin panel; then the speed pass, then blind acceptance.
 
 ## Who does what
 
-| Piece | Size | Who | Model | State |
-|---|---|---|---|---|
-| skeleton-landing | L | Anna | opus / high | building |
-| photos | M | Photos | sonnet / medium | building (waiting to be trusted) |
-| api-worker | L | Viktor | opus / high | building |
-| catalog | L | — | — | planned |
-| admin-panel | L | — | — | planned |
-| speed | M | — | — | planned |
-| acceptance | M | — | — | planned |
+| Piece | Size | Who | State |
+|---|---|---|---|
+| skeleton-landing | L | Anna (dismissed) | merged, live |
+| photos | M | Photos (dismissed) | merged |
+| api-worker | L | Viktor | merged, not deployed |
+| catalog | L | Boris (dismissed) | merged, live |
+| admin-panel | L | Viktor | building |
+| speed | M | — | planned |
+| acceptance | M | — | planned |
+
+## Still empty on the site
+
+Company name, WhatsApp number, social links, the imprint text, and the privacy policy
+needs a real review. The 8 horses are samples, marked `sample: true` in their files;
+their names, pedigrees, prices and sex are invented, the colours match the photographs.
 
 ## Cost
 
-First estimate: 8–15% of the week, 3–6 hours of team time. Stop line: at 20% of the
-week the director stops and asks. The week stood at 57% when the job began.
+First estimate 8–15% of the week; stop line 20%. The week stood at 57% when the job
+began.
