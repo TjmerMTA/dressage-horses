@@ -1,0 +1,35 @@
+diff --git a/worker/src/leads.ts b/worker/src/leads.ts
+index c7af7bc..4a5587e 100644
+--- a/worker/src/leads.ts
++++ b/worker/src/leads.ts
+@@ -190,15 +190,28 @@ function csvCell(v: string | undefined): string {
+   return `"${s.replace(/"/g, '""')}"`;
+ }
+ 
++/** The horse a lead is about, from the page it was sent from: /#quiz?horse=<slug> or ?horse=<slug>. */
++export function horseFromPage(page: string | undefined): string {
++  if (!page) return "";
++  try {
++    const u = new URL(page);
++    const fromHash = u.hash.startsWith("#quiz?") ? new URLSearchParams(u.hash.slice(6)).get("horse") : null;
++    const slug = fromHash ?? u.searchParams.get("horse") ?? "";
++    return /^[a-z0-9][a-z0-9-]{0,79}$/.test(slug) ? slug : "";
++  } catch {
++    return "";
++  }
++}
++
+ export async function handleLeadsCsv(request: Request, env: Env): Promise<Response> {
+   const { leads } = await loadLeads(env, new URL(request.url));
+-  const cols = ["created_at", "name", "contact", "region", "budget", "format", "consent", "country", "page",
++  const cols = ["created_at", "name", "contact", "region", "budget", "format", "consent", "country", "page", "horse",
+     "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "id"];
+   const rows = [cols.join(",")];
+   for (const l of leads) {
+     const t = l.tracking ?? {};
+     rows.push([
+-      l.createdAt, l.name, l.contact, l.region, l.budget, l.format, l.consent ? "yes" : "", l.country, l.page,
++      l.createdAt, l.name, l.contact, l.region, l.budget, l.format, l.consent ? "yes" : "", l.country, l.page, horseFromPage(l.page),
+       t["utm_source"], t["utm_medium"], t["utm_campaign"], t["utm_content"], t["utm_term"], l.id,
+     ].map(csvCell).join(","));
+   }

@@ -20,7 +20,7 @@ photos:
   - ../../assets/horses/horse-bay-trot-portrait.jpg
   - ../../assets/horses/horse-bay-fence-trot.jpg
 photoAlt:
-  - Bay horse in a high-stepping trot ridden by a woman in a helmet, white fence behind
+  - Bay horse in a high-stepping trot along a white fence, ridden by a woman in a helmet
   - Bay horse trots with high steps along a white fence under a helmeted rider
 listed: 2026-10-14
 featured: true

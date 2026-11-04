@@ -36,7 +36,7 @@ const path = Astro.url.pathname;
       <SocialLinks />
     </div>
     <div class="foot">
-      <div class="foot-top"><Image class="logo logo-sm" src={site.logo} alt="Logo" width={34} height={34} densities={[1, 2]} /><span>© <span id="year">{year}</span> <span id="brand2">{displayName(site)}</span></span></div>
+      <div class="foot-top"><Image class="logo logo-sm" src={site.logo} alt="" width={34} height={34} densities={[1, 2]} /><span>© <span id="year">{year}</span> <span id="brand2">{displayName(site)}</span></span></div>
       <nav class="foot-links" aria-label="Footer">
         {footer.links.map((l) => <a href={l.href} aria-current={path === l.href ? 'page' : undefined}>{l.label}</a>)}
       </nav>

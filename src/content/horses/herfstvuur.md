@@ -30,10 +30,10 @@ photoAlt:
   - Chestnut horse trots on a sand arena with a rider in cream, golden grass behind
   - Chestnut horse trotting with a rider between tall autumn trees and golden grass
   - Chestnut horse in a bridle trotting with a rider in cream, red tree behind
-  - Woman in a riding helmet stands close to a chestnut horse in misty autumn woods
-  - Woman in cream touches the muzzle of a saddled chestnut horse on a misty lane
-  - Rider in a helmet on a white-blazed chestnut horse in a golden misty field
-  - Rider in a helmet hugs the neck of a chestnut horse on a misty autumn lane
+  - Saddled chestnut horse with a white blaze in misty autumn woods, a woman in a riding helmet pressed against its head
+  - Saddled chestnut horse with a white blaze on a misty lane, a woman in cream raising a hand to its muzzle
+  - White-blazed chestnut horse under a helmeted rider in a golden misty field
+  - Chestnut horse standing on a misty autumn lane while its helmeted rider leans down to hug its neck
 listed: 2026-10-28
 featured: true
 ---

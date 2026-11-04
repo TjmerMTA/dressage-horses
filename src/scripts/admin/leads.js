@@ -57,13 +57,13 @@ export async function renderLeads(root) {
 
   root.replaceChildren(
     h("div", { class: "adm-head" }, h("h2", {}, "Leads"), h("div", { class: "adm-head-actions" }, refreshBtn, csvBtn)),
-    h("p", { class: "adm-muted" }, "Everyone who completed the quiz on the site. Newest first."),
+    h("p", { class: "adm-muted" }, "Everyone who completed the quiz on the site. Newest first. ", zoneNote()),
     filterForm, count, list);
 
   const draw = () => {
     const q = search.input.value.trim().toLowerCase();
     const shown = q
-      ? state.leads.filter((l) => [l.name, l.contact, l.region, l.budget, l.format, l.country].join(" ").toLowerCase().includes(q))
+      ? state.leads.filter((l) => [l.name, l.contact, l.region, l.budget, l.format, l.country, horseName(horseOf(l))].join(" ").toLowerCase().includes(q))
       : state.leads;
     const total = state.leads.length;
     const newCount = state.leads.filter(isNew).length;
@@ -120,7 +120,7 @@ export async function renderLeads(root) {
           fresh ? h("span", { class: "adm-badge new" }, "New") : null,
           h("time", { datetime: l.createdAt, title: formatDate(l.createdAt) }, relativeTime(l.createdAt)),
           h("span", { class: "adm-sub" }, formatDate(l.createdAt))),
-        h("td", { "data-label": "Name" }, h("strong", {}, l.name), l.country ? h("span", { class: "adm-sub" }, `From ${l.country}`) : null),
+        h("td", { "data-label": "Name" }, h("strong", {}, l.name), horseLine(l), l.country ? h("span", { class: "adm-sub" }, `From ${l.country}`) : null),
         h("td", { "data-label": "Region" }, l.region),
         h("td", { "data-label": "Budget" }, l.budget),
         h("td", { "data-label": "Buying" }, l.format),
@@ -148,6 +148,39 @@ export async function renderLeads(root) {
 
   await load();
   refreshTimer = setInterval(() => { if (document.visibilityState === "visible") load(true); }, REFRESH_MS);
+}
+
+/**
+ * The horse a lead is about. A lead sent from a horse page ("Ask about <horse>") carries
+ * the horse only in the page address it was sent from: /#quiz?horse=<slug>, or
+ * ?horse=<slug>#quiz. The CSV's `page` column holds the same address.
+ */
+export function horseOf(lead) {
+  try {
+    const u = new URL(String(lead.page || ""));
+    const fromHash = u.hash.startsWith("#quiz?") ? new URLSearchParams(u.hash.slice(6)).get("horse") : null;
+    const slug = fromHash || u.searchParams.get("horse") || "";
+    return /^[a-z0-9][a-z0-9-]{0,79}$/.test(slug) ? slug : "";
+  } catch {
+    return "";
+  }
+}
+
+/** "donatello-b" → "Donatello B". The slug is all the lead stores; the link opens the real page. */
+const horseName = (slug) => slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+
+function horseLine(l) {
+  const slug = horseOf(l);
+  if (!slug) return null;
+  return h("span", { class: "adm-sub adm-horse" }, "About ",
+    h("a", { href: `/horses/${slug}/`, target: "_blank", rel: "noopener", title: "Open the horse’s page on the site" }, horseName(slug)));
+}
+
+/** The list shows the time on this computer's clock; the CSV is in UTC. Say both. */
+function zoneNote() {
+  let zone = "";
+  try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch { /* old browser */ }
+  return `Times are in your computer’s time zone${zone ? ` (${zone.replace(/_/g, " ")})` : ""}; the CSV file uses UTC.`;
 }
 
 function contactCell(l) {
