@@ -1,0 +1,28 @@
+# Dressage horses — admin/lead API.
+# This file names the secrets; it never contains them. See README.md.
+name = "dressage-horses-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# Do not log request bodies anywhere: observability keeps only what we console.log,
+# and the Worker only ever logs an error class name and a route.
+[observability]
+enabled = true
+
+[vars]
+# Comma-separated list of origins allowed to call this API from a browser.
+ALLOWED_ORIGINS = "https://dev.siteboosty.com"
+GITHUB_REPO = "TjmerMTA/dressage-horses"
+GITHUB_BRANCH = "main"
+
+# One KV namespace holds leads, sessions and rate-limit counters (distinct key prefixes).
+# Create it with:  npx wrangler kv namespace create DH_KV
+# and paste the id it prints below.
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Secrets (set with `npx wrangler secret put <NAME>`, never written here):
+#   ADMIN_PASSWORD_HASH  — lowercase hex SHA-256 of the admin password
+#   GITHUB_TOKEN         — fine-grained token, Contents: read & write on TjmerMTA/dressage-horses only
