@@ -10,5 +10,6 @@ export default defineConfig({
   build: {
     format: 'directory',
   },
-  integrations: [sitemap()],
+  // The admin panel is not for search engines (robots.txt disallows it as well).
+  integrations: [sitemap({ filter: (page) => !page.includes('/admin/') })],
 });

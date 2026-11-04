@@ -44,6 +44,8 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
 </section>
 
 <script>
+  import { sendLead } from '../scripts/lead-form.js';
+
   type StepKey = 'region' | 'budget' | 'format';
   interface QuizData {
     stepLabel: string;
@@ -138,13 +140,17 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       const ct = el('span', '', Q.consent);
       c.append(cb, ct);
       const e3 = el('div', 'err'); e3.id = 'e-consent';
+      // Honeypot for bots: off-screen, out of the tab order and hidden from screen readers.
+      const trap = el('div', 'hp'); trap.setAttribute('aria-hidden', 'true');
+      const trapInput = el('input'); trapInput.type = 'text'; trapInput.name = 'website'; trapInput.tabIndex = -1; trapInput.autocomplete = 'off';
+      trap.appendChild(trapInput);
 
       const actions = el('div', 'form-actions');
       const submit = el('button', 'btn', Q.submit);
       submit.type = 'submit';
       actions.appendChild(submit);
 
-      form.append(f1, f2, c, e3, actions);
+      form.append(f1, f2, c, e3, trap, actions);
       form.addEventListener('submit', (ev) => {
         ev.preventDefault();
         let ok = true;
@@ -158,7 +164,7 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
         if (!ok) { (name.length < 2 ? i1 : digits.length < 7 || digits.length > 15 ? i2 : cb).focus(); return; }
         answers.name = name;
         answers.whatsapp = wa;
-        send(submit);
+        send(submit, trapInput.value, { name: e1, whatsapp: e2, other: e3 }, { name: i1, whatsapp: i2 });
       });
       wrap.appendChild(form);
       return wrap;
@@ -176,46 +182,32 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
 
     backBtn.addEventListener('click', () => go(step - 1));
 
-    const utm = () => {
-      const out: Record<string, string> = {};
-      try {
-        const p = new URLSearchParams(location.search);
-        ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid'].forEach((k) => {
-          const v = p.get(k);
-          if (v) out[k] = v;
-        });
-      } catch (e) {}
-      return out;
-    };
-
-    const send = (btn: HTMLButtonElement) => {
-      const payload = Object.assign(
-        {
-          region: answers.region, budget: answers.budget, format: answers.format,
-          name: answers.name, whatsapp: answers.whatsapp,
-          page: location.href, sent_at: new Date().toISOString(),
-        },
-        utm(),
-      );
+    // The POST itself (payload, timestamp, honeypot, tracking) lives in src/scripts/lead-form.js.
+    const send = async (
+      btn: HTMLButtonElement,
+      honeypot: string,
+      errs: { name: HTMLElement; whatsapp: HTMLElement; other: HTMLElement },
+      inputs: { name: HTMLInputElement; whatsapp: HTMLInputElement },
+    ) => {
       btn.disabled = true;
       btn.textContent = Q.sending;
-      const done = () => {
+      const result = await sendLead(
+        { region: answers.region, budget: answers.budget, format: answers.format, name: answers.name, whatsapp: answers.whatsapp, consent: true, website: honeypot },
+        Q.endpoint ? { endpoint: Q.endpoint } : {},
+      );
+      if (result.ok) {
         const w = window as unknown as { fbq?: (...a: unknown[]) => void; gtag?: (...a: unknown[]) => void };
         try { if (w.fbq) w.fbq('track', 'Lead'); } catch (e) {}
         try { if (w.gtag) w.gtag('event', 'generate_lead'); } catch (e) {}
         showThanks();
-      };
-      if (!Q.endpoint) { done(); return; }
-      fetch(Q.endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true })
-        .then((r) => { if (!r.ok) throw new Error('bad'); done(); })
-        .catch(() => {
-          btn.disabled = false;
-          btn.textContent = Q.submit;
-          const e3 = document.getElementById('e-consent');
-          if (e3) e3.textContent = Q.errors.send;
-        });
+        return;
+      }
+      btn.disabled = false;
+      btn.textContent = Q.submit;
+      if (result.field === 'name') { errs.name.textContent = Q.errors.name; inputs.name.focus(); }
+      else if (result.field === 'contact') { errs.whatsapp.textContent = Q.errors.whatsapp; inputs.whatsapp.focus(); }
+      else errs.other.textContent = result.reason === 'rate-limited' || result.reason === 'network' ? result.message : Q.errors.send;
     };
-
     const showThanks = () => {
       (document.getElementById('quiz-flow') as HTMLElement).hidden = true;
       const t = document.getElementById('thanks') as HTMLElement;
@@ -259,6 +251,7 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
   .q-nav { margin-block-start: 1.4rem; min-height: 2.4rem; }
   .link-btn { background: none; border: 0; padding: 0.4rem 0; color: var(--muted); font: 600 0.95rem var(--sans); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
   .form-grid { display: grid; gap: 1rem; }
+  .hp { position: absolute; inset-inline-start: -10000px; width: 1px; height: 1px; overflow: hidden; }
   .field label { display: block; font-weight: 600; margin-block-end: 0.4rem; font-size: 0.95rem; }
   .field input[type="text"], .field input[type="tel"] { width: 100%; min-height: 3.3rem; padding: 0.7rem 1rem; border: 2px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); font: 1.05rem var(--sans); }
   .field input:focus { border-color: var(--accent); outline: none; }

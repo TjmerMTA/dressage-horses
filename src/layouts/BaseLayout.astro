@@ -7,9 +7,11 @@ import { getHome, getSite } from '../lib/texts';
 interface Props {
   title: string;
   description: string;
+  /** Leave out the public contact band at the bottom (used by /admin/). */
+  bare?: boolean;
 }
 
-const { title, description } = Astro.props;
+const { title, description, bare = false } = Astro.props;
 const site = await getSite();
 const home = await getHome();
 
@@ -42,7 +44,7 @@ const ogImageUrl = new URL(ogImage.src, Astro.site);
   <body>
     <a class="skip btn btn-sm" href="#main">{site.skipLink}</a>
     <slot />
-    <ContactBand />
+    {!bare && <ContactBand />}
     <slot name="after-footer" />
   </body>
 </html>

@@ -100,6 +100,14 @@ character set is `[A-Za-z0-9._-]`. `public/CNAME` is locked. Text writes accept 
 Any other key → 400. A filled honeypot, or a submit less than 2 s after `ts`, gets the
 normal `{"ok":true}` but is not stored, so bots learn nothing.
 
+### Who calls this
+
+- The quiz, through `src/scripts/lead-form.js` (`sendLead(answers)`; it adds `ts`, the
+  `website` honeypot, the page address and `utm_*`).
+- The admin panel at `/admin/` (`src/scripts/admin/`).
+- Both find the Worker through `src/scripts/api-base.js`: put the `*.workers.dev`
+  address that `npx wrangler deploy` prints into `PRODUCTION_API` there.
+
 ### Notes for the admin page
 
 - Keep the token in `sessionStorage`, not `localStorage`. On any 401, go back to the login form.
