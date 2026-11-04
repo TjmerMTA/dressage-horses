@@ -2,10 +2,14 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PageHeader from '../components/PageHeader.astro';
 import { getContact, getSite } from '../lib/texts';
+import { socialHref, whatsappHref } from '../scripts/site-values.js';
 
 const page = await getContact();
 const { links } = await getSite();
-const hrefOf = (link: 'whatsapp' | 'instagram' | 'tiktok' | 'quiz') => (link === 'quiz' ? '/#quiz' : links[link]);
+// A channel whose handle or number is not set yet is left out, rather than linking nowhere.
+const hrefOf = (link: 'whatsapp' | 'instagram' | 'tiktok' | 'quiz') =>
+  link === 'quiz' ? '/#quiz' : link === 'whatsapp' ? whatsappHref(links.whatsapp) : socialHref(link, links[link]);
+const channels = page.channels.filter((c) => hrefOf(c.link));
 ---
 
 <BaseLayout title={page.meta.title} description={page.meta.description}>
@@ -14,14 +18,14 @@ const hrefOf = (link: 'whatsapp' | 'instagram' | 'tiktok' | 'quiz') => (link ===
     <section class="channels-sec" aria-label="Ways to reach us">
       <div class="wrap">
         <div class="channels">
-          {page.channels.map((c, i) => (
+          {channels.map((c, i) => (
             <article class="card">
               <h2>{c.title}</h2>
               <p>{c.text}</p>
               {c.link === 'quiz' ? (
                 <a class="btn btn-sm" href={hrefOf(c.link)}>{c.button}</a>
               ) : (
-                <a class={i === 0 ? 'btn btn-sm' : 'btn btn-ghost btn-sm'} href={hrefOf(c.link)} target="_blank" rel="noopener">{c.button}</a>
+                <a class={i === 0 ? 'btn btn-sm' : 'btn btn-ghost btn-sm'} href={hrefOf(c.link) ?? undefined} target="_blank" rel="noopener">{c.button}</a>
               )}
             </article>
           ))}

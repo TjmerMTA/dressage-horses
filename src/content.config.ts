@@ -100,11 +100,12 @@ const site = defineCollection({
   schema: ({ image }) =>
     z.object({
       brand: z.string(), // company name for the footer; may stay empty
+      siteTitle: z.string().min(1).default('Dressage horses'), // shown where the company name is still empty
       logo: image(),
       logoAlt: z.string().min(1),
       skipLink: z.string(),
       endpoint: z.string(), // where quiz leads are POSTed; empty = not sent anywhere yet
-      links: z.object({
+      links: z.object({ // empty = not set: the icon / button is not rendered
         instagram: z.string(),
         tiktok: z.string(),
         whatsapp: z.string(),
@@ -174,6 +175,15 @@ const pages = defineCollection({
     description: z.string(),
     eyebrow: z.string(),
     updated: z.coerce.date(),
+    // privacy.md: set to true by the admin once the company has read and approved the text
+    reviewed: z.boolean().default(false),
+    // imprint.md: the company's legal facts; empty = not provided yet (the page says so)
+    companyName: z.string().default(''),
+    legalForm: z.string().default(''),
+    address: z.string().default(''),
+    enterpriseNumber: z.string().default(''),
+    vatNumber: z.string().default(''),
+    email: z.string().default(''),
   }),
 });
 

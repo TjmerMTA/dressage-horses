@@ -174,3 +174,13 @@ strong + .adm-badge { margin-inline-start: 0.5rem; }
   .adm-bar-end { margin-inline-start: 0; inline-size: 100%; justify-content: space-between; }
   .adm-form-bar .btn { flex: 1 1 auto; }
 }
+
+/* before you go live */
+.adm-golive h3 { font-size: 1.1rem; margin: 0; }
+.adm-golive ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; }
+.adm-golive li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; padding-block: 0.7rem; border-block-start: 1px solid var(--line); }
+.adm-golive li:first-child { border-block-start: 0; }
+.adm-done { border-style: solid; border-color: #A9D3B4; background: #E8F3EA; color: #1E5B2E; }
+.adm-unset { display: grid; gap: 0.3rem; }
+.adm-unset a { font-weight: 600; }
+.adm-count#nav-golive { background: #D08A1E; }

@@ -4,6 +4,7 @@ import { API_CONFIGURED } from "../api-base.js";
 import { ApiError, forgetCachedPhotos, isLoggedIn, login, logout, session, setUnauthorizedHandler } from "./api.js";
 import { confirmLeaveForm, isHorseFormDirty, markHorseFormClean, renderHorseForm } from "./horse-form.js";
 import { renderHorses } from "./horses.js";
+import { refreshGoLiveCount, renderGoLive } from "./golive.js";
 import { refreshNewCount, renderLeads, stopLeads } from "./leads.js";
 import { hasUnpublished, startPublishWatcher, stopPublishWatcher } from "./publish.js";
 import { confirmLeaveTexts, isTextsDirty, renderTexts } from "./texts.js";
@@ -68,6 +69,7 @@ loginForm.addEventListener("submit", async (e) => {
     if (!renderedOnce) await route(true);
     else $("main").focus();
     refreshNewCount();
+    refreshGoLiveCount();
   } catch (err) {
     loginError.textContent = err instanceof ApiError ? err.message : "Something went wrong. Please try again.";
     password.select();
@@ -128,6 +130,9 @@ async function route(force = false) {
     if (a === "new") { titled("Add a horse"); await renderHorseForm(view, { mode: "new" }); }
     else if ((a === "edit" || a === "duplicate") && rest[0]) { titled(a === "edit" ? "Edit horse" : "Duplicate horse"); await renderHorseForm(view, { mode: a, slug: decodeURIComponent(rest[0]) }); }
     else { titled("Horses"); await renderHorses(view); }
+  } else if (section === "golive") {
+    titled("Before you go live");
+    await renderGoLive(view);
   } else if (section === "texts") {
     titled("Texts");
     await renderTexts(view, [a, ...rest].join("/"));
@@ -135,7 +140,8 @@ async function route(force = false) {
     titled("Leads");
     await renderLeads(view);
   }
-  if (!force) $("main").focus({ preventScroll: false });
+  // Keep focus where a screen put it (e.g. a field opened from the checklist), else on the content.
+  if (!force && !view.contains(document.activeElement)) $("main").focus({ preventScroll: false });
 }
 
 window.addEventListener("hashchange", () => route());
@@ -153,6 +159,7 @@ if (isLoggedIn()) {
   showApp();
   route(true);
   refreshNewCount();
+    refreshGoLiveCount();
 } else {
   session.clear();
   showLogin();

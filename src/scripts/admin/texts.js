@@ -6,8 +6,10 @@ import {
   HIDDEN_TEXT_KEYS, KEY_LABELS, PAGES_DIR, PHOTO_PREFIX, PHOTOS_DIR, TEXT_FILE_LABELS, TEXT_FILE_ORDER, TEXTS_DIR,
 } from "./config.js";
 import { buildFrontMatter, parseFrontMatter, valuesOf } from "./frontmatter.js";
+import { refreshGoLiveCount } from "./golive.js";
 import { trackCommit } from "./publish.js";
-import { confirmDialog, field, h, nextId, spinner, toast } from "./ui.js";
+import { IMPRINT_FIELDS, displayName, isSet, socialHref, unsetValues, whatsappHref } from "../site-values.js";
+import { confirmDialog, errorBox, field, h, nextId, spinner, toast } from "./ui.js";
 
 let dirty = false;
 export const isTextsDirty = () => dirty;
@@ -44,9 +46,9 @@ const blankLike = (x) => (Array.isArray(x) ? [] : x && typeof x === "object"
 
 export async function renderTexts(root, route = "") {
   dirty = false;
-  const [kind, name] = route.split("/");
-  if (kind === "t" && /^[\w-]+\.json$/.test(name || "")) return renderJsonFile(root, name);
-  if (kind === "p" && /^[\w-]+\.md$/.test(name || "")) return renderPage(root, name);
+  const [kind, name, focus = ""] = route.split("/");
+  if (kind === "t" && /^[\w-]+\.json$/.test(name || "")) return renderJsonFile(root, name, decodeURIComponent(focus));
+  if (kind === "p" && /^[\w-]+\.md$/.test(name || "")) return renderPage(root, name, decodeURIComponent(focus));
 
   root.replaceChildren(spinner("Loading the texts…"));
   let json;
@@ -54,7 +56,7 @@ export async function renderTexts(root, route = "") {
   try {
     [json, md] = await Promise.all([listDir(TEXTS_DIR), listDir(PAGES_DIR)]);
   } catch (e) {
-    if (!(e instanceof ApiError && e.status === 401)) root.replaceChildren(h("h2", {}, "Texts"), h("p", { class: "adm-err" }, e.message));
+    if (!(e instanceof ApiError && e.status === 401)) root.replaceChildren(h("h2", {}, "Texts"), errorBox(e));
     return;
   }
   const files = [
@@ -79,7 +81,8 @@ export async function renderTexts(root, route = "") {
 
 // ---- JSON files ------------------------------------------------------------------------
 
-async function renderJsonFile(root, name) {
+async function renderJsonFile(root, name, focus = "") {
+  const renderer = renderJsonFile;
   const path = `${TEXTS_DIR}/${name}`;
   root.replaceChildren(spinner("Opening…"));
   let file;
@@ -90,7 +93,7 @@ async function renderJsonFile(root, name) {
     original = JSON.parse(file.content);
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) return;
-    root.replaceChildren(h("p", { class: "adm-err" }, e instanceof SyntaxError ? "This file is not valid JSON, so the panel can't edit it." : e.message), h("a", { href: "#/texts" }, "Back to the texts"));
+    root.replaceChildren((e instanceof SyntaxError ? h("p", { class: "adm-err" }, "This file is not valid JSON, so the panel can’t edit it.") : errorBox(e)), h("a", { href: "#/texts" }, "Back to the texts"));
     return;
   }
   library = library.filter((e) => /\.(jpe?g|png|webp)$/i.test(e.name)).map((e) => e.name).sort();
@@ -170,16 +173,37 @@ async function renderJsonFile(root, name) {
       return f.wrap;
     }
 
-    // The WhatsApp link is edited as a phone number.
-    if (key === "whatsapp" && /^https:\/\/wa\.me\//.test(value)) {
-      const digits = value.replace(/^https:\/\/wa\.me\//, "");
-      const f = field({ label: "WhatsApp number", input: h("input", { type: "tel", inputmode: "tel", autocomplete: "off", value: /^\d+$/.test(digits) ? `+${digits}` : "", placeholder: "+32 470 12 34 56" }),
-        hint: /^\d+$/.test(digits) ? "With country code. Used by every WhatsApp button on the site." : "Not set yet. With country code. Used by every WhatsApp button on the site." });
-      f.input.addEventListener("input", () => setAt(state, path, `https://wa.me/${f.input.value.replace(/\D/g, "")}`));
+    // The WhatsApp link is edited as a phone number; empty = not set (buttons are hidden).
+    if (name === "site.json" && pattern(path) === "links.whatsapp") {
+      const href = whatsappHref(value);
+      const digits = href ? href.replace("https://wa.me/", "") : "";
+      const f = field({ label: "WhatsApp number", input: h("input", { type: "tel", inputmode: "tel", autocomplete: "off", value: digits ? `+${digits}` : "", placeholder: "+32 470 12 34 56", dataset: { path: pattern(path) } }),
+        hint: digits ? "With country code. Used by every WhatsApp button on the site." : "Not set yet — every WhatsApp button is hidden and visitors are sent to the quiz. With country code." });
+      f.input.addEventListener("input", () => {
+        const d = f.input.value.replace(/\D/g, "");
+        setAt(state, path, d ? `https://wa.me/${d}` : "");
+      });
       checks.push(() => {
         const d = f.input.value.replace(/\D/g, "");
-        if (!d && !/^\d+$/.test(digits)) { setAt(state, path, value); f.setError(""); return ""; } // still the placeholder: keep it
-        const msg = d.length < 7 || d.length > 15 ? "Enter the number with its country code, for example +32 470 12 34 56." : "";
+        const msg = d && (d.length < 7 || d.length > 15) ? "Enter the number with its country code, for example +32 470 12 34 56 — or leave it empty." : "";
+        f.setError(msg);
+        return msg && f.input;
+      });
+      return f.wrap;
+    }
+
+    // Instagram / TikTok: a full profile address, or empty (the icon is then not shown).
+    if (name === "site.json" && (pattern(path) === "links.instagram" || pattern(path) === "links.tiktok")) {
+      const kind = key;
+      const net = kind === "instagram" ? "Instagram" : "TikTok";
+      const shown = socialHref(kind, value) ? value : "";
+      const f = field({ label: `${net} profile`, input: h("input", { type: "url", value: shown, autocomplete: "off", placeholder: kind === "instagram" ? "https://www.instagram.com/yourname" : "https://www.tiktok.com/@yourname", dataset: { path: pattern(path) } }),
+        hint: shown ? `The ${net} icon links here.` : `Not set yet — the ${net} icon and card are hidden on the site.` });
+      f.input.addEventListener("input", () => setAt(state, path, f.input.value.trim()));
+      if (!shown && value) setAt(state, path, ""); // drop an old template value on save
+      checks.push(() => {
+        const v = f.input.value.trim();
+        const msg = v && !socialHref(kind, v) ? `Paste the full address of the ${net} profile, for example ${kind === "instagram" ? "https://www.instagram.com/yourname" : "https://www.tiktok.com/@yourname"} — or leave it empty.` : "";
         f.setError(msg);
         return msg && f.input;
       });
@@ -191,8 +215,11 @@ async function renderJsonFile(root, name) {
     const input = long
       ? h("textarea", { rows: Math.min(10, Math.max(3, Math.ceil(value.length / 70))) }, value)
       : h("input", { type: isUrl ? "url" : "text", value, autocomplete: "off" });
+    input.dataset.path = pattern(path);
     const tokens = String(origValue || "").match(/\{[a-z]+\}/g) || [];
-    const hint = tokens.length ? `Keep ${tokens.join(" and ")} in the text — it is filled in automatically.` : undefined;
+    const hint = tokens.length ? `Keep ${tokens.join(" and ")} in the text — it is filled in automatically.`
+      : name === "site.json" && pattern(path) === "brand" ? (isSet(value) ? "Shown in the footer of every page." : `Not set yet — the footer shows “${displayName(state)}” instead.`)
+      : name === "site.json" && pattern(path) === "siteTitle" ? "Shown wherever the company name is still empty." : undefined;
     const f = field({ label: lbl, input, hint });
     input.addEventListener("input", () => setAt(state, path, input.value));
     checks.push(() => {
@@ -233,6 +260,8 @@ async function renderJsonFile(root, name) {
       dirty = false;
       trackCommit(res.commit, fileLabel(name));
       toast(`Saved “${fileLabel(name)}”.`);
+      refreshGoLiveCount();
+      return renderer(root, name); // fresh sha and an up-to-date "still unset" note
     } catch (err) {
       if (!(err instanceof ApiError && err.status === 401)) {
         summary.replaceChildren(h("p", {}, err.message));
@@ -244,19 +273,41 @@ async function renderJsonFile(root, name) {
     }
   });
   draw();
-  root.replaceChildren(h("p", { class: "adm-crumb" }, h("a", { href: "#/texts" }, "← All texts")), h("h2", {}, fileLabel(name)), form);
+  root.replaceChildren(h("p", { class: "adm-crumb" }, h("a", { href: "#/texts" }, "← All texts")), h("h2", {}, fileLabel(name)),
+    unsetBanner(name, name === "site.json" ? unsetValues({ site: state }) : []), form);
+  focusField(root, focus);
+}
+
+/** "Still unset here: …" with a link that jumps to each field. */
+function unsetBanner(file, items) {
+  const mine = items.filter((x) => x.file === file);
+  if (!mine.length) return null;
+  return h("div", { class: "adm-warn adm-unset" },
+    h("strong", {}, `Still unset on this page (${mine.length}): `),
+    mine.map((x, i) => [i ? ", " : "", h("a", { href: `#/texts/${file.endsWith(".md") ? "p" : "t"}/${file}/${encodeURIComponent(x.field)}` }, x.label.replace(/^Imprint: /, ""))]),
+    h("span", { class: "adm-sub" }, "Nothing unset is ever shown to visitors; see “Before you go live” for what each one does."));
+}
+
+/** Scrolls to and focuses the field for a dotted path (from the checklist). */
+function focusField(root, path) {
+  if (!path) return;
+  const el = root.querySelector(`[data-path="${CSS.escape(path)}"]`);
+  if (!el) return;
+  el.scrollIntoView({ block: "center" });
+  el.focus({ preventScroll: true });
 }
 
 // ---- Markdown pages --------------------------------------------------------------------
 
-async function renderPage(root, name) {
+async function renderPage(root, name, focus = "") {
+  const renderer = renderPage;
   const path = `${PAGES_DIR}/${name}`;
   root.replaceChildren(spinner("Opening…"));
   let file;
   try {
     file = await readFile(path);
   } catch (e) {
-    if (!(e instanceof ApiError && e.status === 401)) root.replaceChildren(h("p", { class: "adm-err" }, e.message), h("a", { href: "#/texts" }, "Back to the texts"));
+    if (!(e instanceof ApiError && e.status === 401)) root.replaceChildren(errorBox(e), h("a", { href: "#/texts" }, "Back to the texts"));
     return;
   }
   let sha = file.sha;
@@ -264,12 +315,25 @@ async function renderPage(root, name) {
   const vals = valuesOf(doc);
   const LABELS = { title: "Page title", eyebrow: "Small heading above the title", description: "Short description (for Google)", updated: "Last updated" };
   const inputs = {};
-  const fields = Object.entries(vals).filter(([, v]) => typeof v === "string" || typeof v === "number").map(([k, v]) => {
+  const isImprint = name === "imprint.md";
+  const factKeys = new Set(isImprint ? IMPRINT_FIELDS.map(([k]) => k) : []);
+  const textField = (k, v, label, hint) => {
     const isDate = /^\d{4}-\d{2}-\d{2}$/.test(String(v));
-    const f = field({ label: LABELS[k] || humanize(k), input: isDate ? h("input", { type: "date", value: String(v) }) : h("input", { type: "text", value: String(v), autocomplete: "off" }) });
-    inputs[k] = { f, isDate, orig: v };
+    const input = isDate ? h("input", { type: "date", value: String(v) })
+      : h("input", { type: k === "email" ? "email" : "text", value: String(v ?? ""), autocomplete: "off" });
+    input.dataset.path = k;
+    const f = field({ label, input, hint });
+    inputs[k] = { f, isDate, orig: v ?? "", optional: factKeys.has(k) };
     return f.wrap;
-  });
+  };
+  const fields = Object.entries(vals)
+    .filter(([k, v]) => !factKeys.has(k) && (typeof v === "string" || typeof v === "number"))
+    .map(([k, v]) => textField(k, v, LABELS[k] || humanize(k)));
+  // Imprint: the company's legal facts. Empty ones are named on the page as "to follow".
+  const facts = isImprint ? IMPRINT_FIELDS.map(([k, label]) => textField(k, typeof vals[k] === "string" ? vals[k] : "", label,
+    isSet(vals[k]) ? undefined : "Not set yet — the imprint says this detail will follow. Fill it in only with the company’s real, official data.")) : [];
+  // Privacy: a plain "the company has approved this text" switch.
+  const reviewed = name === "privacy.md" ? h("input", { type: "checkbox", id: nextId(), checked: vals.reviewed === true, dataset: { path: "reviewed" } }) : null;
   const bump = h("input", { type: "checkbox", id: nextId(), checked: true });
   const body = field({ label: "Page text", input: h("textarea", { rows: 22, class: "adm-mono" }, doc.body.replace(/^\n+/, "")),
     hint: "Markdown: an empty line starts a new paragraph, “## ” starts a heading, [text](address) makes a link." });
@@ -278,14 +342,22 @@ async function renderPage(root, name) {
   const form = h("form", { class: "adm-form", novalidate: true }, summary,
     h("fieldset", { class: "adm-section" }, h("legend", {}, "About this page"), h("div", { class: "adm-grid" }, fields),
       "updated" in inputs ? h("div", { class: "adm-check" }, bump, h("label", { for: bump.id }, "Set “last updated” to today when saving")) : null),
+    facts.length ? h("fieldset", { class: "adm-section" }, h("legend", {}, "Company details"), h("div", { class: "adm-grid" }, facts)) : null,
+    reviewed ? h("fieldset", { class: "adm-section" }, h("legend", {}, "Approval"),
+      h("div", { class: "adm-check" }, reviewed, h("label", { for: reviewed.id }, "The company has read this policy and approves it"),
+        h("span", { class: "adm-hint" }, "Tick this only after someone at the company (ideally with legal advice) has checked the text. It is not shown to visitors."))) : null,
     h("fieldset", { class: "adm-section" }, h("legend", {}, "Text"), body.wrap),
     h("div", { class: "adm-form-bar" }, saveBtn, h("a", { class: "btn btn-ghost", href: "#/texts" }, "Back")));
   form.addEventListener("input", () => { dirty = true; });
+  form.addEventListener("change", () => { dirty = true; });
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const bad = [];
-    for (const [, { f, orig }] of Object.entries(inputs)) {
-      const msg = String(orig).trim() && !f.input.value.trim() ? "This can’t be empty." : "";
+    for (const [k, { f, orig, optional }] of Object.entries(inputs)) {
+      const val = f.input.value.trim();
+      const msg = !optional && String(orig).trim() && !val ? "This can’t be empty."
+        : k === "email" && val && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(val) ? "This doesn’t look like an e-mail address."
+        : optional && val && !isSet(val) ? "This still looks like a placeholder. Enter the real value, or leave it empty." : "";
       f.setError(msg);
       if (msg) bad.push(f.input);
     }
@@ -298,6 +370,7 @@ async function renderPage(root, name) {
       updates[k] = typeof orig === "number" ? Number(f.input.value) : f.input.value.trim();
       if (isDate && k === "updated" && bump.checked) updates[k] = new Date().toISOString().slice(0, 10);
     }
+    if (reviewed) updates.reviewed = reviewed.checked;
     saveBtn.disabled = true;
     try {
       const content = buildFrontMatter(doc, updates, text);
@@ -306,6 +379,8 @@ async function renderPage(root, name) {
       dirty = false;
       trackCommit(res.commit, fileLabel(name));
       toast(`Saved “${fileLabel(name)}”.`);
+      refreshGoLiveCount();
+      return renderer(root, name); // fresh sha and an up-to-date "still unset" note
     } catch (err) {
       if (!(err instanceof ApiError && err.status === 401)) {
         summary.replaceChildren(h("p", {}, err.message));
@@ -316,5 +391,8 @@ async function renderPage(root, name) {
       saveBtn.disabled = false;
     }
   });
-  root.replaceChildren(h("p", { class: "adm-crumb" }, h("a", { href: "#/texts" }, "← All texts")), h("h2", {}, fileLabel(name)), form);
+  const pending = unsetValues(name === "imprint.md" ? { imprint: vals } : name === "privacy.md" ? { privacy: vals } : {});
+  root.replaceChildren(h("p", { class: "adm-crumb" }, h("a", { href: "#/texts" }, "← All texts")), h("h2", {}, fileLabel(name)),
+    unsetBanner(name, pending), form);
+  focusField(root, focus);
 }

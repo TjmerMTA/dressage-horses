@@ -127,3 +127,12 @@ export function field({ label, input, hint, id }) {
 export function spinner(text) {
   return h("p", { class: "adm-loading", role: "status" }, h("span", { class: "adm-spin", "aria-hidden": "true" }), text);
 }
+
+/** The error for a screen that could not load: a plain warning box for a setup problem. */
+export function errorBox(err) {
+  const msg = (err && err.message) || "Something went wrong.";
+  if (/missing its GitHub key/.test(msg)) {
+    return h("div", { class: "adm-warn", role: "alert" }, h("strong", {}, "Repository not connected. "), msg);
+  }
+  return h("p", { class: "adm-err", role: "alert" }, msg);
+}

@@ -4,6 +4,7 @@
 // JSON so the (bundled, deferred) script itself contains no copy.
 import { getCatalogue, getHome, getSite } from '../lib/texts';
 import { getPublishedHorses } from '../lib/horses';
+import { whatsappHref } from '../scripts/site-values.js';
 
 const { quiz } = await getHome();
 const site = await getSite();
@@ -17,7 +18,7 @@ const horses = Object.fromEntries(
 const data = {
   ...quiz,
   endpoint: site.endpoint,
-  whatsapp: site.links.whatsapp,
+  whatsapp: whatsappHref(site.links.whatsapp) ?? '',
   horses,
   horseNote: catalogue.quiz.horseNote,
   horseRecap: catalogue.quiz.horseRecap,
@@ -47,7 +48,7 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
         <h3 tabindex="-1" id="thanks-h">{quiz.thanksTitle}</h3>
         <p>{quiz.thanksText}</p>
         <ul class="recap" id="recap"></ul>
-        <a class="btn btn-sm" href={site.links.whatsapp}>{quiz.whatsappNow}</a>
+        {whatsappHref(site.links.whatsapp) && <a class="btn btn-sm" href={whatsappHref(site.links.whatsapp)}>{quiz.whatsappNow}</a>}
       </div>
     </div>
   </div>

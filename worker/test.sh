@@ -21,6 +21,7 @@ cleanup() {
   for p in "${PIDS[@]:-}"; do [[ -n "$p" ]] && kill "$p" 2>/dev/null; done
   wait 2>/dev/null
   pkill -f "wrangler dev --port $PORT " 2>/dev/null
+  pkill -f "wrangler dev --port $((PORT + 7)) " 2>/dev/null
   rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -250,6 +251,20 @@ echo "== POST /admin/logout"
 check "logout"                             200 '{"ok":true}' -X POST -H "$AUTH" "$BASE/admin/logout"
 check "token dead after logout"            401 'session' -H "$AUTH" "$BASE/admin/leads"
 check "logout again"                       401 'session' -X POST -H "$AUTH" "$BASE/admin/logout"
+
+echo "== a Worker whose GITHUB_TOKEN secret is empty (wrangler secret put with no input)"
+NT_PORT=$((PORT + 7))
+printf 'ADMIN_PASSWORD_HASH=%s\nGITHUB_TOKEN=\nGITHUB_API_BASE=%s\n' "$PW_HASH" "$GH" > "$TMP/notoken.env"
+npx wrangler dev --port "$NT_PORT" --ip 127.0.0.1 --persist-to "$TMP/state-nt" --env-file "$TMP/notoken.env" \
+  --show-interactive-dev-session=false > "$TMP/wrangler-nt.log" 2>&1 & PIDS+=($!)
+for _ in $(seq 1 60); do curl -s -m 1 "http://127.0.0.1:$NT_PORT/health" >/dev/null 2>&1 && break; sleep 0.5; done
+NT="http://127.0.0.1:$NT_PORT"
+check "login still works without the key"  200 '"token"' -H "$(ip 40)" -H "$JSON" -d "{\"password\":\"$PW\"}" "$NT/admin/login"
+NT_AUTH="Authorization: Bearer $(jget token)"
+check "content says the key is missing"    503 'repository not configured' -H "$NT_AUTH" "$NT/admin/content?path=src/content/texts/home.json"
+check "upload says the key is missing"     503 'repository not configured' -H "$NT_AUTH" -F slug=duke -F "file=@$TMP/a.png;type=image/png" "$NT/admin/upload"
+check "leads are not affected"             200 '"leads"' -H "$NT_AUTH" "$NT/admin/leads"
+pkill -f "wrangler dev --port $NT_PORT " 2>/dev/null
 
 echo "== secrets stay out of the logs"
 assert "password not in wrangler log"      bash -c "! grep -qF '$PW' '$TMP/wrangler.log'"

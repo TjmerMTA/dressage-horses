@@ -1,10 +1,51 @@
 ---
+// The imprint. The company's legal facts live in the front matter of imprint.md (editable
+// in the admin). Facts that are set are listed; the ones still missing are named in one
+// calm sentence instead of "to be confirmed" placeholders. Nothing is ever made up.
 import { getEntry, render } from 'astro:content';
 import LegalPage from '../components/LegalPage.astro';
+import { getSite } from '../lib/texts';
+import { IMPRINT_FIELDS, isSet, whatsappHref } from '../scripts/site-values.js';
 
 const entry = await getEntry('pages', 'imprint');
 if (!entry) throw new Error('src/content/pages/imprint.md is missing');
 const { Content } = await render(entry);
+const site = await getSite();
+
+const data = entry.data as unknown as Record<string, unknown>;
+const value = (k: string) => (typeof data[k] === 'string' ? (data[k] as string).trim() : '');
+const companyFacts = IMPRINT_FIELDS.filter(([k]) => k !== 'email');
+const known = companyFacts.filter(([k]) => isSet(value(k)));
+const missing = companyFacts.filter(([k]) => !isSet(value(k))).map(([, label]) => label.replace(/ \(.*\)$/, ''));
+const lower = (s: string) => (/^[A-Z]{2,}/.test(s) ? s : s.charAt(0).toLowerCase() + s.slice(1));
+const list = (items: string[]) =>
+  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+const email = isSet(value('email')) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value('email')) ? value('email') : '';
+const wa = whatsappHref(site.links.whatsapp);
 ---
 
-<LegalPage entry={entry}><Content /></LegalPage>
+<LegalPage entry={entry}>
+  <p>Information about the company that operates this website, as required by Belgian and EU law (Code of Economic Law, Book XII, and the EU e-Commerce Directive).</p>
+
+  <h2>Company</h2>
+  {known.length > 0 && (
+    <ul>
+      {known.map(([k, label]) => <li><strong>{label}:</strong> {value(k)}</li>)}
+    </ul>
+  )}
+  {missing.length > 0 && (
+    <p>
+      {known.length > 0 ? 'The ' : 'Our '}{lower(list(missing))} {missing.length === 1 ? 'is' : 'are'} being added to this page and will appear here shortly.
+      Until then, you can reach us through the <a href="/contact/">contact page</a>.
+    </p>
+  )}
+
+  <h2>Contact</h2>
+  <ul>
+    {wa && <li><strong>WhatsApp:</strong> <a href={wa} target="_blank" rel="noopener">write to us on WhatsApp</a></li>}
+    {email && <li><strong>E-mail:</strong> <a href={`mailto:${email}`}>{email}</a></li>}
+    <li><strong>Enquiries:</strong> the <a href="/#quiz">quick quiz</a> or the <a href="/contact/">contact page</a></li>
+  </ul>
+
+  <Content />
+</LegalPage>

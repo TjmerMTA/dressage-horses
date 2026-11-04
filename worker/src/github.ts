@@ -33,8 +33,10 @@ function config(env: Env): { base: string; repo: string; branch: string; token: 
   const token = env.GITHUB_TOKEN || "";
   const repo = env.GITHUB_REPO || "";
   const branch = env.GITHUB_BRANCH || "";
-  if (!token || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo) || !/^[A-Za-z0-9._/-]+$/.test(branch)) {
-    throw new HttpError(500, "server not configured");
+  // A missing or empty GITHUB_TOKEN secret (e.g. `wrangler secret put` run without input)
+  // gets its own message, so the admin can say exactly what is wrong.
+  if (!token.trim() || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo) || !/^[A-Za-z0-9._/-]+$/.test(branch)) {
+    throw new HttpError(503, "repository not configured");
   }
   const base = (env.GITHUB_API_BASE || "https://api.github.com").replace(/\/+$/, "");
   return { base, repo, branch, token };

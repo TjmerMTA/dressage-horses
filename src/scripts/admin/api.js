@@ -33,8 +33,14 @@ export class ApiError extends Error {
 }
 
 /** Turns a status and the Worker's short error into a sentence for a non-programmer. */
-function humanMessage(status, server, retryAfter) {
+export const NO_GITHUB_KEY = "The panel cannot reach the repository — the server is missing its GitHub key. Horses, texts and photos can’t be loaded or saved until the developer sets it. Leads are not affected.";
+const REPO_PATHS = /^\/admin\/(content|raw|upload|deploy-status)/;
+
+function humanMessage(status, server, retryAfter, path = "") {
   const s = server.toLowerCase();
+  // Newer Worker: "repository not configured" (503). Older one: "server not configured" (500).
+  if (s.includes("repository not configured") || (s.includes("server not configured") && REPO_PATHS.test(path))) return NO_GITHUB_KEY;
+  if (s.includes("server not configured")) return "The server is missing one of its settings (the admin password). Ask the developer to set it.";
   if (status === 0) return "Can't reach the server. Check the internet connection and try again.";
   if (status === 401) return "Your session has ended. Please log in again.";
   if (status === 429) {
@@ -87,7 +93,7 @@ export async function api(path, { method = "GET", query, json, body, raw = false
   if (!res.ok) {
     let server = "";
     try { server = String((await res.json()).error || ""); } catch { /* not JSON */ }
-    throw new ApiError(res.status, humanMessage(res.status, server, res.headers.get("Retry-After")), server);
+    throw new ApiError(res.status, humanMessage(res.status, server, res.headers.get("Retry-After"), path), server);
   }
   return raw ? res : res.json();
 }
@@ -105,7 +111,11 @@ export async function login(password) {
     throw new ApiError(0, humanMessage(0, ""));
   }
   if (res.status === 401) throw new ApiError(401, "That password is not right.");
-  if (!res.ok) throw new ApiError(res.status, humanMessage(res.status, "", res.headers.get("Retry-After")));
+  if (!res.ok) {
+    let server = "";
+    try { server = String((await res.clone().json()).error || ""); } catch { /* not JSON */ }
+    throw new ApiError(res.status, humanMessage(res.status, server, res.headers.get("Retry-After"), "/admin/login"), server);
+  }
   const data = await res.json();
   session.set(data.token);
 }

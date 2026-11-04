@@ -1,13 +1,14 @@
 {
   "brand": "",
+  "siteTitle": "Dressage horses",
   "logo": "../../assets/brand/logo.jpg",
   "logoAlt": "Dressage horses — home",
   "skipLink": "Skip to content",
   "endpoint": "",
   "links": {
-    "instagram": "https://www.instagram.com/YOUR_HANDLE",
-    "tiktok": "https://www.tiktok.com/@YOUR_HANDLE",
-    "whatsapp": "https://wa.me/YOUR_NUMBER"
+    "instagram": "",
+    "tiktok": "",
+    "whatsapp": ""
   },
   "nav": [
     {

@@ -4,7 +4,7 @@ import { HORSES_DIR, REPO_URL } from "./config.js";
 import { buildFrontMatter, parseFrontMatter, valuesOf } from "./frontmatter.js";
 import { refToRepoPath } from "./photos.js";
 import { trackCommit } from "./publish.js";
-import { confirmDialog, formatPrice, h, spinner, toast } from "./ui.js";
+import { confirmDialog, errorBox, formatPrice, h, spinner, toast } from "./ui.js";
 
 async function mapLimit(items, limit, fn) {
   const out = new Array(items.length);
@@ -42,7 +42,7 @@ export async function renderHorses(root) {
     horses = await loadHorses();
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) return;
-    root.replaceChildren(h("h2", {}, "Horses"), h("p", { class: "adm-err" }, e.message));
+    root.replaceChildren(h("h2", {}, "Horses"), errorBox(e));
     return;
   }
   horses.sort((a, b) => rank(a) - rank(b) || String(a.v.name || a.slug).localeCompare(String(b.v.name || b.slug)));
