@@ -21,7 +21,7 @@ GITHUB_BRANCH = "main"
 # and paste the id it prints below.
 [[kv_namespaces]]
 binding = "KV"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "51c18230e345443eafb8d84cbcf71bc9"
 
 # Secrets (set with `npx wrangler secret put <NAME>`, never written here):
 #   ADMIN_PASSWORD_HASH  — lowercase hex SHA-256 of the admin password
