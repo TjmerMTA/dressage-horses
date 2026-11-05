@@ -113,7 +113,7 @@ export async function renderHorses(root) {
         } }, isSold ? "Mark available" : "Mark sold"),
         h("button", { type: "button", class: "btn btn-ghost btn-sm", onclick: async () => {
           if (isPub) {
-            const ok = await confirmDialog({ title: `Hide “${name}”?`, body: "It is hidden from the list. You can publish it again at any time.", confirmLabel: "Hide it", danger: true });
+            const ok = await confirmDialog({ title: `Hide “${name}”?`, body: "It stays here, marked as hidden. You can publish it again at any time.", confirmLabel: "Hide it", danger: true });
             if (!ok) return;
           } else if (!(Array.isArray(x.v.photos) && x.v.photos.length)) {
             toast("Add at least one photo before publishing (Edit → Photos).", "err");
@@ -124,7 +124,7 @@ export async function renderHorses(root) {
         h("button", { type: "button", class: "btn btn-ghost btn-sm adm-danger-text", onclick: async () => {
           const first = await confirmDialog({
             title: `Delete “${name}”?`,
-            body: ["The horse and its details are deleted for good. Its photographs stay in the photo library.", "If you only want to take it out of the list for now, use “Unpublish” instead."],
+            body: ["The horse and its details are deleted for good. Its photographs stay in the photo library.", "If you only want to keep it but mark it as hidden, use “Unpublish” instead."],
             confirmLabel: "Delete…", danger: true,
           });
           if (!first) return;
