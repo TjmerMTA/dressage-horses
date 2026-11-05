@@ -5,7 +5,18 @@
 import { ApiError, api } from "./api.js";
 import { confirmDialog, errorBox, field, h, spinner, toast } from "./ui.js";
 
-const TOKEN_RE = /^(?:ntn|secret)_[A-Za-z0-9]{20,120}$/;
+// Same loose rule as the Worker (worker/src/notion-settings.ts): one long word, no spaces.
+// A key this screen refuses can never be tried, so the shape is left to Notion to judge.
+const TOKEN_RE = /^[\x21-\x7e]{20,200}$/;
+
+/** Strips what a copy drags along: zero-width characters, a byte-order mark, wrapping quotes. */
+export function cleanToken(raw) {
+  return String(raw || "")
+    .replace(/[\u200b-\u200f\u2060\ufeff]/g, "")
+    .trim()
+    .replace(/^["'<`]+|["'>`]+$/g, "")
+    .trim();
+}
 
 /** Same rule as the Worker (worker/src/notion.ts → databaseId): the id from an id or a link. */
 export function databaseIdOf(raw) {
@@ -218,11 +229,11 @@ export async function renderNotionSettings(root) {
 
   /** Validates what is typed; returns the body pieces or null (and marks the fields). */
   function typed() {
-    const t = tokenInput.value.trim();
+    const t = cleanToken(tokenInput.value);
     const d = db.input.value.trim();
     let ok = true;
     if (t && !TOKEN_RE.test(t)) {
-      token.setError("This doesn’t look like a Notion key. It starts with ntn_ and has no spaces. Copy it again with the Copy button in Notion.");
+      token.setError("A Notion key is one word with no spaces. Use the Copy button next to the key in Notion — do not select it by hand.");
       ok = false;
     }
     if (d && !databaseIdOf(d)) {
@@ -371,7 +382,7 @@ export async function renderNotionSettings(root) {
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) { progress.textContent = "Not saved yet."; return; }
       const s = err.serverMessage || "";
-      if (/token/.test(s)) token.setError("This doesn’t look like a Notion key. It starts with ntn_ and has no spaces.");
+      if (/token/.test(s)) token.setError("The server would not take this key: it must be one word with no spaces.");
       else if (/database|field: db/.test(s)) db.setError("This doesn’t contain a database id. In Notion: open the database as a full page → ••• → Copy link.");
       else toast(err.message, "err");
       progress.textContent = "Not saved.";

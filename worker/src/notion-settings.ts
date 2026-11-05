@@ -22,8 +22,13 @@ import { rateLimit } from "./security";
 
 export const CONFIG_KEY = "notion:config";
 const CONFIG_BODY_LIMIT = 4 * 1024;
-/** An internal integration secret: "ntn_…" now, "secret_…" for keys made before late 2024. */
-const TOKEN_RE = /^(?:ntn|secret)_[A-Za-z0-9]{20,120}$/;
+/**
+ * What a Notion key may look like. Deliberately loose: one long word of printable characters,
+ * no spaces. Notion's own shape is "ntn_…" now and "secret_…" before late 2024, but that is
+ * Notion's business to change, and a key we refuse can never be tried — the person is left with
+ * a working key and a panel that will not take it. Notion itself says yes or no.
+ */
+const TOKEN_RE = /^[\x21-\x7e]{20,200}$/;
 const NAME_MAX = 100;
 const CONTROL_RE = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
 /** A check makes a call to Notion: generous for a person, a wall for a script. */
@@ -140,11 +145,24 @@ function view(e: Effective) {
 
 // ---- input checks ----------------------------------------------------------------------------
 
+/**
+ * A pasted key, as a person pastes it: with the invisible characters a copy can drag along
+ * (zero-width spaces, a byte-order mark) and the quotes or angle brackets a mail client wraps
+ * it in. Nothing inside the key itself is touched.
+ */
+export function cleanToken(raw: string): string {
+  return raw
+    .replace(/[\u200b-\u200f\u2060\ufeff]/g, "")
+    .trim()
+    .replace(/^["'<`]+|["'>`]+$/g, "")
+    .trim();
+}
+
 function tokenField(v: unknown): string {
   if (typeof v !== "string") throw new HttpError(400, "invalid field: token");
-  const t = v.trim();
+  const t = cleanToken(v);
   if (!t) throw new HttpError(400, "empty token: to remove the key, send removeToken");
-  if (!TOKEN_RE.test(t)) throw new HttpError(400, "invalid token: a Notion key starts with ntn_ and has no spaces");
+  if (!TOKEN_RE.test(t)) throw new HttpError(400, "invalid token: a Notion key is one word with no spaces — use the Copy button next to it in Notion");
   return t;
 }
 
@@ -219,7 +237,7 @@ function explain(r: CallResult | "timeout" | "network"): { cause: Cause; status:
     return { cause: "down", status: 0, message: "Notion did not answer. Notion may be down or slow right now; your settings may be fine. Try again in a few minutes." };
   }
   if (r.status === 401) {
-    return { cause: "token", status: 401, message: "Notion does not accept this key. Copy the Internal Integration Secret again from notion.so/my-integrations (it starts with ntn_) and paste it here." };
+    return { cause: "token", status: 401, message: "Notion does not accept this key. Copy the Internal Integration Secret again from notion.so/profile/integrations and paste it here." };
   }
   if (r.status === 404) {
     return { cause: "access", status: 404, message: "The key works, but Notion will not show this database to it. In Notion, open the database as a full page, click ••• (top right) → Connections → Connect to → choose your integration (e.g. “Website leads”) → Confirm. Then check again. If you did that already, check that the link is the database’s and not another page’s." };

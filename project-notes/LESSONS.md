@@ -27,3 +27,12 @@ Notebook v1 — updated 2026-11-05
 - 2026-11-05 — A `team tell` message containing backticks inside double quotes is run by
   zsh ("command not found: phase"). Build it with `msg=$(cat <<'XX' … XX)` and pass
   `"$msg"`. Evidence: a task card for Pavel was sent mangled.
+- 2026-11-05 — Guessing the shape of someone else's secret locks the person out. The Notion
+  key was validated as `ntn_`/`secret_` + letters and digits only, in the panel *and* the
+  Worker, so a key with any other character could not even be tried: the field answered
+  "this doesn't look like a Notion key" and nothing was saved. Validate only what we must
+  (no spaces, a sane length) and let the other service judge its own key. Evidence: a key
+  with one hyphen was refused in the browser; after loosening, the same key saved.
+- 2026-11-05 — `bash worker/test.sh` while a `wrangler dev` of the same Worker is running on
+  8787 gives 79 false failures. Stop the dev server first. Evidence: 248/79 with it up,
+  327/0 straight after.
