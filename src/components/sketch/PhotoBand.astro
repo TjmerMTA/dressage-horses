@@ -8,7 +8,7 @@
 // download a 1600 px landscape file only to show its middle. Wider screens get the
 // photograph uncut. AVIF and WebP for both; a JPEG of the uncut photograph as fallback.
 import { getImage } from 'astro:assets';
-import { bandPhotos, isLandscape } from './photos';
+import { bandPhotos, isLandscape } from '../photos';
 
 // Phone slide: an 84vw square (330 px on a 390 px phone, 990 px at 3x).
 const phoneSizes = '84vw';

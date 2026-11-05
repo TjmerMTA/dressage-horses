@@ -1,21 +1,62 @@
 ---
-// The mock-up's "How it works" section (titled "How it works with us" there).
+// The mock-up's section, with one photograph per card (the client's "variant B":
+// more of his photographs on the page without adding a block the mock-up does not have).
+// Pass photos={false} to get the section exactly as the mock-up had it.
+import { Picture } from 'astro:assets';
 import { getHome } from '../lib/texts';
+import { isLandscape, stepPhotos } from './photos';
 
+interface Props {
+  /** The heading's id; each copy on a page needs its own. */
+  id?: string;
+  photos?: boolean;
+}
+
+const { id = 'how-h', photos = true } = Astro.props;
 const { how } = await getHome();
+
+// The photo box is 4:5 and at most 6.5rem / 9rem / 11rem wide, never more than 36% of the
+// card (see the CSS below). A landscape photograph covering it needs 1.875 x the box width
+// (1.25 x 1.5).
+const sizes = {
+  portrait: '(max-width: 899px) 6.5rem, (max-width: 1099px) 9rem, 11rem',
+  landscape: '(max-width: 899px) 12.2rem, (max-width: 1099px) 16.9rem, 20.7rem',
+};
 ---
 
-<section class="how-sec" aria-labelledby="how-h">
+<section class="how-sec" aria-labelledby={id}>
   <div class="wrap">
     <div class="eyebrow">{how.eyebrow}</div>
-    <h2 id="how-h">{how.title}</h2>
-    <ol class="steps">
-      {how.steps.map((s) => <li><strong>{s.title}</strong><span>{s.text}</span></li>)}
+    <h2 id={id}>{how.title}</h2>
+    <ol class:list={['steps', { 'with-photos': photos }]}>
+      {how.steps.map((s, i) => {
+        const p = photos ? stepPhotos[i] : undefined;
+        return (
+          <li>
+            {p && (
+              <div class="step-photo" style={`--focus: ${p.focus}`}>
+                <Picture
+                  src={p.src}
+                  alt={p.alt}
+                  formats={['avif', 'webp']}
+                  fallbackFormat="jpg"
+                  widths={[200, 320, 400, 560, 720]}
+                  sizes={isLandscape(p) ? sizes.landscape : sizes.portrait}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+            )}
+            <strong>{s.title}</strong><span>{s.text}</span>
+          </li>
+        );
+      })}
     </ol>
   </div>
 </section>
 
 <style>
+  /* the live component's rules, unchanged */
   .how-sec { padding: 5rem 0; background: var(--surface); border-block: 1px solid var(--line); }
   .how-sec h2 { font-size: clamp(1.7rem, 4vw, 2.5rem); max-width: 34rem; }
   .steps { list-style: none; margin-block: 2.6rem 0; margin-inline: 0; padding: 0; display: grid; gap: clamp(1.2rem, 3.2vw, 2.2rem); grid-template-columns: repeat(2, minmax(0, 1fr)); counter-reset: s; }
@@ -24,4 +65,15 @@ const { how } = await getHome();
   .steps strong { display: block; font-size: 1.15rem; line-height: 1.3; margin-block-end: 0.4rem; }
   .steps span { color: var(--muted); font-size: 0.97rem; }
   @media (max-width: 519px) { .steps { grid-template-columns: 1fr; } }
+
+  /* Variant B: the photograph at the start of each card, number and text beside it */
+  .with-photos li { --ph: 6.5rem; display: grid; grid-template-columns: min(var(--ph), 36%) minmax(0, 1fr); grid-template-rows: auto auto 1fr; column-gap: clamp(1rem, 2.4vw, 1.6rem); align-items: start; }
+  .with-photos li::before { grid-column: 2; grid-row: 1; }
+  .with-photos strong { grid-column: 2; grid-row: 2; }
+  .with-photos span { grid-column: 2; grid-row: 3; }
+  .step-photo { grid-column: 1; grid-row: 1 / -1; aspect-ratio: 4 / 5; border-radius: 16px; overflow: hidden; background: var(--line); }
+  .step-photo :global(picture) { display: contents; }
+  .step-photo :global(img) { display: block; width: 100%; height: 100%; object-fit: cover; object-position: var(--focus, center); }
+  @media (min-width: 900px) { .with-photos li { --ph: 9rem; } }
+  @media (min-width: 1100px) { .with-photos li { --ph: 11rem; } }
 </style>
