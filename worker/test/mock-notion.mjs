@@ -4,7 +4,8 @@
 //   node test/mock-notion.mjs <port> <expected-token> <expected-database-id>
 //
 //   GET  /v1/databases/<id>   the schema: "status" (default), "select", "fbstatus", "fbselect",
-//                             "nocomment", "nostage" or "nooption", see SCHEMAS below
+//                             "nocomment", "nostage" or "nooption", see SCHEMAS below.
+//                             Another id → 404; PAGE_ID (a page, not a database) → 400
 //   POST /v1/pages            checked against that schema the way Notion does: an unknown
 //                             property, a value of the wrong type, an option that does not
 //                             exist, text over 2000 characters or an empty string → 400
@@ -16,11 +17,14 @@
 // Test-only routes:
 //   GET  /__calls           every request received: { at, method, path, auth, version, body }
 //   POST /__mode?m=ok       from now on answer 200 to every page ("normal" switches the names back on)
+//   POST /__mode?m=down     from now on answer 503 to everything (Notion is down)
 //   POST /__schema?s=select switch the schema
 import http from "node:http";
 import crypto from "node:crypto";
 
 const [port, token, dbId] = [Number(process.argv[2]), process.argv[3], process.argv[4]];
+/** The id of an ordinary page: Notion answers 400 when it is asked for it as a database. */
+const PAGE_ID = "11111111aaaa4bbb8ccc222222222222";
 const calls = [];
 const seen = new Map(); // title → number of page calls
 let mode = "normal";
@@ -125,10 +129,12 @@ http.createServer((req, res) => {
     try { body = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { /* checked below */ }
     calls.push({ at: Date.now(), method: req.method, path: url.pathname, auth: req.headers.authorization || "", version: req.headers["notion-version"] || "", body });
 
+    if (mode === "down") return err(res, 503, "service_unavailable");
     if (req.headers.authorization !== `Bearer ${token}`) return err(res, 401, "unauthorized");
     if (req.headers["notion-version"] !== "2022-06-28") return err(res, 400, "missing_version");
 
     if (req.method === "GET" && url.pathname.startsWith("/v1/databases/")) {
+      if (url.pathname.slice(14) === PAGE_ID) return err(res, 400, "validation_error");
       if (url.pathname.slice(14) !== dbId) return err(res, 404, "object_not_found");
       const properties = Object.fromEntries(Object.entries(SCHEMAS[schemaName]).map(([name, v]) => [name, { id: crypto.randomUUID().slice(0, 4), name, ...v }]));
       return send(res, 200, { object: "database", id: dbId, title: [{ plain_text: "Підбір для клієнтів / Clients Selection" }], properties });

@@ -186,3 +186,12 @@ strong + .adm-badge { margin-inline-start: 0.5rem; }
 .adm-unset { display: grid; gap: 0.3rem; }
 .adm-unset a { font-weight: 600; }
 .adm-count#nav-golive { background: #D08A1E; }
+
+/* Notion screen */
+.adm-notion-check { display: grid; gap: 0.7rem; }
+.adm-notion-check:empty { display: none; }
+.adm-notion-check .adm-note, .adm-notion-check .adm-warn { margin: 0; }
+.adm-notion-check ul { margin-block: 0.5rem 0; padding-inline-start: 1.2rem; }
+.adm-notion-check summary { cursor: pointer; font-weight: 600; min-block-size: 2.2rem; display: flex; align-items: center; }
+.adm-notion-props { columns: 2 16rem; gap: 1.5rem; }
+.adm-notion-props li { break-inside: avoid; margin-block-end: 0.35rem; }

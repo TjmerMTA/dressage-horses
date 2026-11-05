@@ -6,6 +6,7 @@ import { confirmLeaveForm, isHorseFormDirty, markHorseFormClean, renderHorseForm
 import { renderHorses } from "./horses.js";
 import { refreshGoLiveCount, renderGoLive } from "./golive.js";
 import { refreshNewCount, renderLeads, stopLeads } from "./leads.js";
+import { confirmLeaveNotion, isNotionDirty, renderNotionSettings } from "./notion-settings.js";
 import { hasUnpublished, startPublishWatcher, stopPublishWatcher } from "./publish.js";
 import { confirmLeaveTexts, isTextsDirty, renderTexts } from "./texts.js";
 import { confirmDialog, h } from "./ui.js";
@@ -80,7 +81,7 @@ loginForm.addEventListener("submit", async (e) => {
 });
 
 $("logout").addEventListener("click", async () => {
-  const dirty = isHorseFormDirty() || isTextsDirty();
+  const dirty = isHorseFormDirty() || isTextsDirty() || isNotionDirty();
   const pending = hasUnpublished();
   if (dirty || pending) {
     const ok = await confirmDialog({
@@ -112,8 +113,8 @@ async function route(force = false) {
   const hash = location.hash || "#/leads";
   if (!force && hash === currentHash) return;
   // Leaving a form with unsaved changes asks first.
-  if (currentHash && hash !== currentHash && (isHorseFormDirty() || isTextsDirty())) {
-    const ok = isHorseFormDirty() ? await confirmLeaveForm() : await confirmLeaveTexts();
+  if (currentHash && hash !== currentHash && (isHorseFormDirty() || isTextsDirty() || isNotionDirty())) {
+    const ok = isHorseFormDirty() ? await confirmLeaveForm() : isTextsDirty() ? await confirmLeaveTexts() : await confirmLeaveNotion();
     if (!ok) {
       history.replaceState(null, "", currentHash);
       return;
@@ -133,6 +134,9 @@ async function route(force = false) {
   } else if (section === "golive") {
     titled("Before you go live");
     await renderGoLive(view);
+  } else if (section === "notion") {
+    titled("Notion");
+    await renderNotionSettings(view);
   } else if (section === "texts") {
     titled("Texts");
     await renderTexts(view, [a, ...rest].join("/"));
@@ -146,7 +150,7 @@ async function route(force = false) {
 
 window.addEventListener("hashchange", () => route());
 window.addEventListener("beforeunload", (e) => {
-  if (isHorseFormDirty() || isTextsDirty()) {
+  if (isHorseFormDirty() || isTextsDirty() || isNotionDirty()) {
     e.preventDefault();
     e.returnValue = "";
   }

@@ -27,6 +27,7 @@ cleanup() {
   pkill -f "wrangler dev --port $PORT " 2>/dev/null
   pkill -f "wrangler dev --port $((PORT + 7)) " 2>/dev/null
   pkill -f "wrangler dev --port $NW_PORT " 2>/dev/null
+  pkill -f "wrangler dev --port $((PORT + 9)) " 2>/dev/null
   [[ -n "${KEEP_TMP:-}" ]] && echo "kept $TMP" || rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -473,6 +474,160 @@ assert "long lead sent"                    test "$(mark_of 'Long Answers')" = se
 assert "every long answer whole in the text" nc "Long Answers" "(() => { const t = ($TEXT)(p), l = JSON.parse(process.env.LONGJ); return t.split('\n').length === 8 && [l.region, l.budget, l.format, l.contact, l.page].every(v => t.includes(v)); })()"
 assert "each text piece within Notion's 2000" nc "Long Answers" "p['Comment on phase'].rich_text.every(t => t.text.content.length <= 2000) && ($TEXT)(p).length > 1000"
 pkill -f "wrangler dev --port $NW_PORT " 2>/dev/null
+
+echo "== Notion settings from the admin panel (GET/PUT /admin/notion/config, POST /admin/notion/check)"
+# A Worker of its own (own KV state). Its wrangler settings hold a key Notion refuses and a
+# database Notion does not know, so whatever works below works because of what the panel saved.
+SW_PORT=$((PORT + 9))
+SW="http://127.0.0.1:$SW_PORT"
+ENV_TOKEN_DUMMY="ntn_env$(openssl rand -hex 12)"
+ENV_DB_ID="$(openssl rand -hex 16)"
+PAGE_ID="11111111aaaa4bbb8ccc222222222222"   # the mock's "ordinary page, not a database"
+WRONG_TOKEN="ntn_wrong$(openssl rand -hex 12)"
+cat > "$TMP/settings.env" <<EOT
+ADMIN_PASSWORD_HASH=$PW_HASH
+GITHUB_TOKEN=$GH_TOKEN_DUMMY
+GITHUB_API_BASE=$GH
+NOTION_TOKEN=$ENV_TOKEN_DUMMY
+NOTION_DB=$ENV_DB_ID
+NOTION_API_BASE=$NOTION
+EOT
+npx wrangler dev --port "$SW_PORT" --ip 127.0.0.1 --persist-to "$TMP/state-sw" --env-file "$TMP/settings.env" \
+  --show-interactive-dev-session=false > "$TMP/wrangler-sw.log" 2>&1 & PIDS+=($!)
+for _ in $(seq 1 60); do curl -s -m 1 "$SW/health" >/dev/null 2>&1 && break; sleep 0.5; done
+curl -s -o /dev/null -X POST "$NOTION/__mode?m=normal"
+curl -s -o /dev/null -X POST "$NOTION/__schema?s=status"
+sw_leads() { curl -s -o "$TMP/leads.json" -H "$SW_AUTH" "$SW/admin/leads"; }
+sw_mark_of() { local m=""; for _ in $(seq 1 30); do sw_leads; m="$(lget "$1" notion)"; [[ -n "$m" ]] && break; sleep 0.5; done; echo "$m"; }
+swlead() { check "lead: $2" 200 '{"ok":true}' -H "$(ip "$1")" -H "$JSON" \
+  -d "{\"name\":\"$2\",\"region\":\"Europe\",\"budget\":\"€60,000 – 100,000\",\"format\":\"Online purchase\",\"contact\":\"+32 470 99 88 77\",\"ts\":$TS}" "$SW/lead"; }
+put_cfg() { check "$1" "$2" "$3" -X PUT -H "$SW_AUTH" -H "$JSON" -d "$4" "$SW/admin/notion/config"; }
+ncheck() { check "$1" "$2" "$3" -H "$SW_AUTH" -H "$(ip 79)" -H "$JSON" -d "$4" "$SW/admin/notion/check"; }
+no_secret_in_body() { ! grep -qF -- "$NOTION_TOKEN_DUMMY" "$TMP/body" && ! grep -qF -- "$ENV_TOKEN_DUMMY" "$TMP/body" && ! grep -qF -- "$WRONG_TOKEN" "$TMP/body"; }
+DB_URL="https://www.notion.so/team/Clients-Selection-$NOTION_DB_ID?v=$(openssl rand -hex 16)"
+DB_DASHED="$(node -e 'const s=process.argv[1];console.log([s.slice(0,8),s.slice(8,12),s.slice(12,16),s.slice(16,20),s.slice(20)].join("-"))' "$NOTION_DB_ID")"
+
+check "login (settings Worker)"            200 '"token"' -H "$(ip 70)" -H "$JSON" -d "{\"password\":\"$PW\"}" "$SW/admin/login"
+SW_AUTH="Authorization: Bearer $(jget token)"
+check "config without session"             401 'session' "$SW/admin/notion/config"
+check "save without session"               401 'session' -X PUT -H "$JSON" -d '{"enabled":false}' "$SW/admin/notion/config"
+check "check without session"              401 'session' -H "$JSON" -d '{}' "$SW/admin/notion/check"
+check "config: wrangler values before any save" 200 '"from":"server"' -H "$SW_AUTH" "$SW/admin/notion/config"
+assert "env key shown only by its last 4"  test "$(jget token.set)|$(jget token.last4)" = "true|${ENV_TOKEN_DUMMY: -4}"
+assert "env database and names reported"   test "$(jget db)|$(jget dbFrom)|$(jget stageProp)|$(jget stageValue)|$(jget commentProp)|$(jget active)" = "$ENV_DB_ID|server|Face|Lead|comment on phase|true"
+assert "the key itself is not in the reply" no_secret_in_body
+swlead 71 "Env Lead"
+assert "before a save the wrangler key is used" test "$(sw_mark_of 'Env Lead')|$(lget 'Env Lead' notionError)" = "failed|db 401 unauthorized"
+assert "...against the wrangler database"  nc "" "reads.some(x => x.path === '/v1/databases/$ENV_DB_ID' && x.auth === 'Bearer $ENV_TOKEN_DUMMY')"
+
+echo "== PUT /admin/notion/config: what is refused"
+put_cfg "unknown field"                    400 'unknown field' '{"token2":"x"}'
+put_cfg "a key that is not shaped like one" 400 'invalid token' '{"token":"my notion password"}'
+put_cfg "a key with a space inside"        400 'invalid token' "{\"token\":\"ntn_abc def$(openssl rand -hex 12)\"}"
+put_cfg "an empty key is not a removal"    400 'removeToken' '{"token":"   "}'
+put_cfg "removeToken must be true"         400 'removeToken' '{"removeToken":"yes"}'
+put_cfg "a key and removeToken together"   400 'not both' "{\"token\":\"$NOTION_TOKEN_DUMMY\",\"removeToken\":true}"
+put_cfg "a database that is not an id"     400 'invalid database' '{"db":"https://www.notion.so/team/My-page"}'
+put_cfg "a database id too short"          400 'invalid database' '{"db":"abc123"}'
+put_cfg "enabled must be true or false"    400 'invalid field: enabled' '{"enabled":"yes"}'
+put_cfg "a name over 100 characters"       400 'invalid field: stageProp' "{\"stageProp\":\"$(printf 'x%.0s' $(seq 1 101))\"}"
+put_cfg "a name with a control character"  400 'invalid field: commentProp' '{"commentProp":"a\u0007b"}'
+put_cfg "a name that is not text"          400 'invalid field: stageValue' '{"stageValue":5}'
+check "save as form data"                  415 'application/json' -X PUT -H "$SW_AUTH" -d 'enabled=false' "$SW/admin/notion/config"
+check "save body over 4 KB"                413 'too large' -X PUT -H "$SW_AUTH" -H "$JSON" --data-binary "@$TMP/lead-big.json" "$SW/admin/notion/config"
+check "nothing was saved by the refusals"  200 '"from":"server"' -H "$SW_AUTH" "$SW/admin/notion/config"
+
+echo "== POST /admin/notion/check: the four real failures"
+ncheck "check with the wrangler key"       200 '"ok":false' '{}'
+assert "401 → cause: the key is wrong"     test "$(jget cause)|$(jget status)" = "token|401"
+assert "...said plainly"                   grep -qF 'Notion does not accept this key' "$TMP/body"
+ncheck "check a database not shared with it" 200 '"ok":false' "{\"token\":\"$NOTION_TOKEN_DUMMY\"}"
+assert "404 → cause: no access"            test "$(jget cause)|$(jget status)" = "access|404"
+assert "...names the Connections step"     grep -qF 'Connections → Connect to' "$TMP/body"
+ncheck "check a page that is no database"  200 '"ok":false' "{\"token\":\"$NOTION_TOKEN_DUMMY\",\"db\":\"https://www.notion.so/team/Notes-$PAGE_ID\"}"
+assert "400 → cause: not a database"       test "$(jget cause)|$(jget status)" = "not_database|400"
+curl -s -o /dev/null -X POST "$NOTION/__mode?m=down"
+ncheck "check while Notion is down"        200 '"ok":false' "{\"token\":\"$NOTION_TOKEN_DUMMY\",\"db\":\"$NOTION_DB_ID\"}"
+assert "503 → cause: Notion is down"       test "$(jget cause)|$(jget status)" = "down|503"
+curl -s -o /dev/null -X POST "$NOTION/__mode?m=normal"
+ncheck "check with a malformed key"        400 'invalid token' '{"token":"hello"}'
+ncheck "check with a malformed database"   400 'invalid database' '{"db":"not-a-database"}'
+ncheck "check with an unknown field"       400 'unknown field' '{"url":"x"}'
+assert "no key ever echoed by a check"     no_secret_in_body
+
+echo "== POST /admin/notion/check: success"
+ncheck "check the pasted link with the new key" 200 '"ok":true' "{\"token\":\"$NOTION_TOKEN_DUMMY\",\"db\":\"$DB_URL\"}"
+assert "the id is taken from the link"     test "$(jget database.id)" = "$NOTION_DB_ID"
+assert "his database's title"              test "$(jget database.title)" = "Підбір для клієнтів / Clients Selection"
+assert "every property, name and type"     test "$(node -e 'const j=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(j.properties.map(p=>p.name+":"+p.type).join("|"))' "$TMP/body")" = "Клієнт:title|Budget:select|Face:status|Comment on phase:rich_text|Phone:phone_number|Created:created_time"
+assert "options of the status and select"  test "$(jget properties.2.options)|$(jget properties.1.options)" = '["Lead","Selection","Deal"]|["€30 000 – 60 000"]'
+assert "Face / Lead / comment are found"   test "$(jget use.stageProp)|$(jget use.stageValue)|$(jget use.commentProp)|$(jget problems)" = "Face|Lead|Comment on phase|[]"
+assert "a check saves nothing"             test "$(curl -s -H "$SW_AUTH" "$SW/admin/notion/config" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).dbFrom))')" = server
+assert "the check sent the new key"        nc "" "reads[reads.length-1].auth === 'Bearer $NOTION_TOKEN_DUMMY' && reads[reads.length-1].path === '/v1/databases/$NOTION_DB_ID'"
+ncheck "check names that are not there"    200 '"ok":true' "{\"token\":\"$NOTION_TOKEN_DUMMY\",\"db\":\"$NOTION_DB_ID\",\"stageValue\":\"Won\",\"commentProp\":\"Answers\"}"
+assert "...says what a card would lack"    test "$(jget use.stageValue)|$(jget problems.0)" = '|stage: "Face" has no option "Won"; it has: Lead, Selection, Deal'
+assert "...the comment falls back by name" test "$(jget use.commentProp)" = "Comment on phase"
+
+echo "== saving from the panel overrides wrangler.toml"
+put_cfg "save the key and the pasted link" 200 '"ok":true' "{\"token\":\"  $NOTION_TOKEN_DUMMY \",\"db\":\"$DB_URL\"}"
+assert "reply: the link became the id"     test "$(jget db)|$(jget dbFrom)" = "$NOTION_DB_ID|panel"
+assert "reply: key set, last 4 only"       test "$(jget token.set)|$(jget token.last4)|$(jget token.from)|$(jget active)" = "true|${NOTION_TOKEN_DUMMY: -4}|panel|true"
+assert "the key is not in the save reply"  no_secret_in_body
+check "read back the saved settings"       200 '"from":"panel"' -H "$SW_AUTH" "$SW/admin/notion/config"
+assert "read back: masked"                 test "$(jget token.last4)|$(jget db)" = "${NOTION_TOKEN_DUMMY: -4}|$NOTION_DB_ID"
+assert "the key is not in the read-back"   no_secret_in_body
+put_cfg "a dashed id is accepted too"      200 "\"db\":\"$NOTION_DB_ID\"" "{\"db\":\"$DB_DASHED\"}"
+ncheck "check the saved settings"          200 '"ok":true' '{}'
+assert "...with Face / Lead / comment"     test "$(jget use.stageProp)|$(jget use.stageValue)|$(jget use.commentProp)" = "Face|Lead|Comment on phase"
+swlead 72 "Panel Lead"
+assert "a lead now reaches his database"   test "$(sw_mark_of 'Panel Lead')" = sent
+assert "...with the panel's key and database" nc "Panel Lead" "c.auth === 'Bearer $NOTION_TOKEN_DUMMY' && c.body.parent.database_id === '$NOTION_DB_ID' && p['Face'].status.name === 'Lead'"
+check "the leads list says Notion is on"   200 '"notion":true' -H "$SW_AUTH" "$SW/admin/leads"
+put_cfg "pick another column"              200 '"stageValue":"Selection"' '{"stageProp":"face","stageValue":"Selection","commentProp":"Comment on phase"}'
+swlead 73 "Selection Lead"
+assert "the card lands in that column"     test "$(sw_mark_of 'Selection Lead')" = sent
+assert "...Face = Selection"               nc "Selection Lead" "p['Face'].status.name === 'Selection' && Object.keys(p).length === 3"
+put_cfg "an empty name means the default"  200 '"stageValue":"Lead"' '{"stageValue":""}'
+
+echo "== switched off, and on again"
+put_cfg "switch Notion off"                200 '"active":false' '{"enabled":false}'
+assert "off keeps the key and the database" test "$(jget enabled)|$(jget token.set)|$(jget db)" = "false|true|$NOTION_DB_ID"
+CALLS_BEFORE="$(notion_count)"
+swlead 74 "Off Lead"
+sleep 3
+assert "off: no call to Notion at all"     test "$(notion_count)" = "$CALLS_BEFORE"
+sw_leads
+assert "off: the lead is stored, no mark"  test "$(lget 'Off Lead' name)|$(lget 'Off Lead' notion)" = "Off Lead|"
+assert "off: the list says nothing of Notion" bash -c "! grep -q '\"notion\":true' '$TMP/leads.json'"
+check "off: resend says it is off"         503 'switched off' -H "$SW_AUTH" -H "$JSON" -d '{}' "$SW/admin/notion/resend"
+ncheck "off: the check still works"        200 '"ok":true' '{}'
+assert "...and says delivery is off"       test "$(jget active)" = false
+put_cfg "switch Notion on"                 200 '"active":true' '{"enabled":true}'
+swlead 75 "Back On Lead"
+assert "on again: the lead is sent"        test "$(sw_mark_of 'Back On Lead')" = sent
+check "on again: the lead from the off time" 200 '"sent":1' -H "$SW_AUTH" -H "$JSON" -d "{\"id\":\"$(lget 'Off Lead' id)\"}" "$SW/admin/notion/resend"
+
+echo "== removing the key"
+put_cfg "remove the key"                   200 '"active":false' '{"removeToken":true}'
+assert "removed: not set, wrangler key not used" test "$(jget token.set)|$(jget token.last4)|$(jget token.from)|$(jget enabled)" = "false|null|null|true"
+CALLS_BEFORE="$(notion_count)"
+swlead 76 "No Key Lead"
+sleep 3
+assert "no key: no call to Notion"         test "$(notion_count)" = "$CALLS_BEFORE"
+ncheck "no key: a check needs one"         400 'no token' '{}'
+put_cfg "put a key back"                   200 '"active":true' "{\"token\":\"$NOTION_TOKEN_DUMMY\"}"
+put_cfg "a wrong key saved"                200 '"active":true' "{\"token\":\"$WRONG_TOKEN\"}"
+swlead 77 "Wrong Key Lead"
+assert "a wrong saved key → failed, 401"   test "$(sw_mark_of 'Wrong Key Lead')|$(lget 'Wrong Key Lead' notionError)" = "failed|401 unauthorized"
+put_cfg "the right key again"              200 "\"last4\":\"${NOTION_TOKEN_DUMMY: -4}\"" "{\"token\":\"$NOTION_TOKEN_DUMMY\"}"
+
+echo "== the check is rate limited"
+for i in $(seq 1 30); do curl -s -o /dev/null -H "$SW_AUTH" -H "$(ip 78)" -H "$JSON" -d '{}' "$SW/admin/notion/check"; done
+check "31st check in 10 min from one IP"   429 'too many' -H "$SW_AUTH" -H "$(ip 78)" -H "$JSON" -d '{}' "$SW/admin/notion/check"
+pkill -f "wrangler dev --port $SW_PORT " 2>/dev/null
+assert "no Notion key in the settings log" bash -c "! grep -qF -e '$NOTION_TOKEN_DUMMY' -e '$ENV_TOKEN_DUMMY' -e '$WRONG_TOKEN' '$TMP/wrangler-sw.log'"
+assert "no unhandled errors, settings Worker" bash -c "! grep -qE 'unhandled|notion sync' '$TMP/wrangler-sw.log'"
+assert "no lead data in the settings log"  bash -c "! grep -v 'CF-KV-Metadata' '$TMP/wrangler-sw.log' | grep -qE 'Panel Lead|Off Lead|470 99 88 77'"
 
 echo "== secrets stay out of the logs"
 assert "password not in wrangler log"      bash -c "! grep -qF '$PW' '$TMP/wrangler.log'"

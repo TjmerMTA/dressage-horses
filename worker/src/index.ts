@@ -6,6 +6,7 @@ import {
 import { Env, HttpError, errorResponse, isAllowedOrigin, json, preflight, readJson, withCors } from "./http";
 import { handleLead, handleLeads, handleLeadsCsv } from "./leads";
 import { handleNotionResend } from "./notion";
+import { handleNotionCheck, handleNotionConfigGet, handleNotionConfigPut } from "./notion-settings";
 import { SESSION_TTL_SEC, checkPassword, createSession, deleteSession, rateLimit, requireSession } from "./security";
 
 type Handler = (request: Request, env: Env, ctx: ExecutionContext) => Promise<Response>;
@@ -44,6 +45,8 @@ const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   "/admin/deploy-status": { GET: admin(handleDeployStatus) },
   "/admin/upload": { POST: admin(handleUpload) },
   "/admin/notion/resend": { POST: admin(handleNotionResend) },
+  "/admin/notion/config": { GET: admin(handleNotionConfigGet), PUT: admin(handleNotionConfigPut) },
+  "/admin/notion/check": { POST: admin(handleNotionCheck) },
 };
 
 async function route(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

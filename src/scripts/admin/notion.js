@@ -12,19 +12,19 @@ export const reachedNotion = (l) => l.notion === "sent" || l.notion === "partial
 /** "401 unauthorized" (what the Worker stored) → a sentence for the owner. */
 function reason(code) {
   const c = String(code || "");
-  if (/^401/.test(c)) return "Notion refused the key. The developer needs to check NOTION_TOKEN.";
-  if (/^(db )?404/.test(c)) return "Notion can’t see the database. In Notion, open it → ••• → Connections → add the integration.";
+  if (/^(db )?401/.test(c)) return "Notion refused the key. Open “Notion” in the menu and press “Check connection”.";
+  if (/^(db )?404/.test(c)) return "Notion can’t see the database. In Notion, open it → ••• → Connections → add the integration. “Check connection” on the Notion screen tells you when it works.";
   if (/^403/.test(c)) return "The integration isn’t allowed to add cards to this database.";
   if (/^429/.test(c)) return "Notion was busy. Try again in a minute.";
   if (/^400/.test(c)) return "Notion refused this lead’s data.";
-  if (/NOTION_DB/.test(c)) return "The database id in the Worker’s settings is wrong.";
+  if (/NOTION_DB|database id/.test(c)) return "The database id is wrong. Paste the database link again on the Notion screen.";
   return "Notion didn’t answer. Try again in a minute.";
 }
 
 export function notionMark(l) {
   if (l.notion === "sent") return h("span", { class: "adm-sub" }, "In Notion");
   if (l.notion === "partial") {
-    return h("span", { class: "adm-sub", title: `Notion: ${l.notionError || "a property was not found"}. The card is there, with every answer in its page text${/(^|; )stage:/.test(l.notionError || "") ? ", but not in the right column: move it by hand" : ""}. Fix the property's name in Notion or in the Worker's settings, and the next leads are complete.` }, "In Notion, incomplete");
+    return h("span", { class: "adm-sub", title: `Notion: ${l.notionError || "a property was not found"}. The card is there, with every answer in its page text${/(^|; )stage:/.test(l.notionError || "") ? ", but not in the right column: move it by hand" : ""}. Pick the right property on the Notion screen (Check connection shows what your database has), and the next leads are complete.` }, "In Notion, incomplete");
   }
   if (!l.notion && Date.now() - Date.parse(l.createdAt) < IN_FLIGHT_MS) return h("span", { class: "adm-sub" }, "Sending to Notion…");
   const why = l.notion === "failed" ? reason(l.notionError) : "This lead arrived before Notion was connected.";

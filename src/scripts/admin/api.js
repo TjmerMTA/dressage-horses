@@ -45,7 +45,7 @@ function humanMessage(status, server, retryAfter, path = "") {
   if (status === 401) return "Your session has ended. Please log in again.";
   if (path.startsWith("/admin/notion")) {
     if (status === 429) return "Notion is busy. Try again in a minute.";
-    if (status === 503) return "Notion isn’t connected on the server yet.";
+    if (status === 503) return s.includes("switched off") ? "Notion delivery is switched off. Switch it on in the Notion screen." : "Notion isn’t set up yet. Open the Notion screen in the menu.";
     if (status >= 500) return `Notion didn’t answer properly (${server || status}). The leads are safe here; try again in a minute.`;
   }
   if (status === 429) {

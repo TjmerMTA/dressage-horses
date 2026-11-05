@@ -15,12 +15,10 @@ enabled = true
 ALLOWED_ORIGINS = "https://dev.siteboosty.com"
 GITHUB_REPO = "TjmerMTA/dressage-horses"
 GITHUB_BRANCH = "main"
-# Notion: the id of the client's existing database "Підбір для клієнтів / Clients Selection"
-# (32 characters from the database page's address; the whole address works too). Not a secret.
-# Empty = Notion is switched off and the Worker behaves exactly as without it. See README.md → "Notion".
+# Notion is set up from the admin panel's "Notion" screen (stored in KV, `notion:config`).
+# These are only the fallbacks for fields the panel has never saved. See README.md → "Notion".
 NOTION_DB = ""
-# What a new card sets besides the name in his title property. Upper/lower case and spaces do
-# not count. Rename here if he renames them in Notion. See README.md → "Notion".
+# Upper/lower case and spaces do not count.
 NOTION_STAGE_PROP = "Face"               # the status his board is grouped by
 NOTION_STAGE_VALUE = "Lead"              # the board column a new card lands in (must exist)
 NOTION_COMMENT_PROP = "comment on phase" # gets every answer as plain text
@@ -35,4 +33,4 @@ id = "51c18230e345443eafb8d84cbcf71bc9"
 # Secrets (set with `npx wrangler secret put <NAME>`, never written here):
 #   ADMIN_PASSWORD_HASH  — lowercase hex SHA-256 of the admin password
 #   GITHUB_TOKEN         — fine-grained token, Contents: read & write on TjmerMTA/dressage-horses only
-#   NOTION_TOKEN         — Notion internal integration token (optional; empty = Notion off)
+#   NOTION_TOKEN         — not needed: the Notion key is pasted into the admin panel (a key saved there wins)
