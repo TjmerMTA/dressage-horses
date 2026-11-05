@@ -6,8 +6,6 @@ import { Picture } from 'astro:assets';
 import type { Horse } from '../lib/horses';
 import { ageOf, countryLabel, fill, formatPrice, horseHref, levelLabel, photoAlt } from '../lib/horses';
 import { getCatalogue } from '../lib/texts';
-import { SAMPLE, isSample } from '../lib/sample';
-import SampleMark from './SampleMark.astro';
 
 interface Props {
   horse: Horse;
@@ -18,10 +16,9 @@ const { horse, headingLevel = 'h3' } = Astro.props;
 const Heading = headingLevel;
 const t = await getCatalogue();
 const { name, photos, height, level, sold } = horse.data;
-const sample = isSample(horse);
 ---
 
-<article class="horse-card" data-sold={sold ? '' : undefined} data-sample={sample ? '' : undefined}>
+<article class="horse-card" data-sold={sold ? '' : undefined}>
   <div class="hc-photo">
     <Picture
       src={photos[0]}
@@ -33,15 +30,10 @@ const sample = isSample(horse);
       loading="lazy"
       decoding="async"
     />
-    {(sold || sample) && (
-      <div class="hc-marks">
-        {sold && <span class="hc-ribbon">{t.labels.sold}</span>}
-        {sample && <SampleMark hidden />}
-      </div>
-    )}
+    {sold && <span class="hc-ribbon">{t.labels.sold}</span>}
   </div>
   <div class="hc-body">
-    <Heading class="hc-name"><a href={horseHref(horse)}>{name}{sample && <span class="sr-only">{SAMPLE.linkSuffix}</span>}</a></Heading>
+    <Heading class="hc-name"><a href={horseHref(horse)}>{name}</a></Heading>
     <ul class="hc-facts">
       <li>{fill(t.labels.age, { age: ageOf(horse) })}</li>
       <li>{fill(t.labels.height, { height })}</li>
@@ -49,7 +41,6 @@ const sample = isSample(horse);
       <li>{countryLabel(horse, t)}</li>
     </ul>
     <p class="hc-price">{sold ? t.labels.sold : formatPrice(horse, t)}</p>
-    {sample && <p class="hc-sample-note">{SAMPLE.cardNote}</p>}
   </div>
 </article>
 
@@ -61,8 +52,7 @@ const sample = isSample(horse);
   .hc-photo picture { display: contents; }
   .hc-photo img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; }
   .horse-card[data-sold] .hc-photo img { filter: saturate(.55); opacity: .85; }
-  .hc-marks { position: absolute; inset-block-start: 1rem; inset-inline-start: 1rem; inset-inline-end: 1rem; display: flex; flex-direction: column; align-items: flex-start; gap: 0.55rem; pointer-events: none; }
-  .hc-ribbon { padding: 0.35rem 0.9rem; border-radius: 999px; background: var(--accent-ink); color: #FFFFFF; font: 700 0.78rem/1.2 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; box-shadow: 0 3px 0 #100600, 0 8px 16px rgba(41,19,5,.25); }
+  .hc-ribbon { position: absolute; inset-block-start: 1rem; inset-inline-start: 1rem; padding: 0.35rem 0.9rem; border-radius: 999px; background: var(--accent-ink); color: #FFFFFF; font: 700 0.78rem/1.2 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; box-shadow: 0 3px 0 #100600, 0 8px 16px rgba(41,19,5,.25); }
   .hc-body { display: flex; flex-direction: column; flex: 1; padding: 1.2rem 1.4rem 1.4rem; }
   .hc-name { font-size: 1.35rem; margin-block-end: 0.6rem; }
   .hc-name a { text-decoration: none; }
@@ -73,5 +63,4 @@ const sample = isSample(horse);
   .hc-facts li { padding: 0.15rem 0.65rem; border-radius: 999px; background: var(--accent-soft); }
   .hc-price { margin-block-start: auto; padding-block-start: 1rem; font: 700 1.15rem/1.2 var(--serif); color: var(--text); }
   .horse-card[data-sold] .hc-price { color: var(--muted); }
-  .hc-sample-note { margin-block-start: 0.4rem; font-size: 0.84rem; line-height: 1.4; color: var(--muted); }
 </style>
