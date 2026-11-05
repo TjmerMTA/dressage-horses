@@ -24,7 +24,7 @@ body { background: #FBF8F2; }
 .adm-muted, .adm-sub { color: var(--muted); }
 .adm-sub { display: block; font-size: 0.85rem; }
 .adm-horse { color: var(--text); }
-.adm-horse a { font-weight: 600; color: var(--accent-text); text-underline-offset: 3px; }
+.adm-horse strong { color: var(--accent-text); }
 .adm-crumb { margin-block-end: 0.6rem; font-size: 0.95rem; }
 .adm-note, .adm-empty { padding: 1.4rem; background: var(--surface); border: 1px dashed var(--line-strong); border-radius: 18px; color: var(--muted); margin-block-start: 1rem; }
 .adm-count-line { margin-block: 1rem 0.6rem; font-weight: 600; }

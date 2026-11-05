@@ -15,31 +15,8 @@ export async function getSite() {
   return entry.data;
 }
 
-export async function getServices() {
-  const entry = await getEntry('services', 'services');
-  if (!entry) throw new Error('src/content/texts/services.json is missing');
-  return entry.data;
-}
-
-export async function getAbout() {
-  const entry = await getEntry('about', 'about');
-  if (!entry) throw new Error('src/content/texts/about.json is missing');
-  return entry.data;
-}
-
-export async function getContact() {
-  const entry = await getEntry('contact', 'contact');
-  if (!entry) throw new Error('src/content/texts/contact.json is missing');
-  return entry.data;
-}
-
-/** "/#quiz" from inner pages, "#quiz" on the home page (as in the mock-up). */
+/** "#quiz" on the home page (as in the mock-up), "/#quiz" from the privacy policy, the imprint and the 404 page. */
 export function quizHref(pathname: string) {
   return pathname === '/' ? '#quiz' : '/#quiz';
 }
 
-export async function getCatalogue() {
-  const entry = await getEntry('catalogue', 'catalogue');
-  if (!entry) throw new Error('src/content/texts/catalogue.json is missing');
-  return entry.data;
-}

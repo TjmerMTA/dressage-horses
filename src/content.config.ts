@@ -11,6 +11,7 @@
 import { defineCollection } from 'astro:content';
 import { file, glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+import { isOneEmojiOrNone } from './scripts/site-values.js';
 
 const textFile = (name: string) =>
   file(`src/content/texts/${name}.json`, {
@@ -22,14 +23,8 @@ const meta = z.object({
   description: z.string(),
 });
 
-const pageHeader = z.object({
-  eyebrow: z.string(),
-  title: z.string(),
-  lead: z.string().optional(),
-  leadNoWhatsapp: z.string().optional(), // used while no WhatsApp number is set
-});
-
 const titledText = z.object({ title: z.string(), text: z.string() });
+
 
 const home = defineCollection({
   loader: textFile('home'),
@@ -59,7 +54,16 @@ const home = defineCollection({
             z.object({
               key: z.enum(['region', 'budget', 'format']),
               title: z.string(),
-              options: z.array(z.string()).min(2),
+              // Each answer: the words (what the lead stores and the thank-you screen
+              // repeats) and an optional emoji shown before them, hidden from screen readers.
+              options: z
+                .array(
+                  z.object({
+                    icon: z.string().refine(isOneEmojiOrNone, 'one emoji, or leave it empty'),
+                    answer: z.string().min(1),
+                  }),
+                )
+                .min(2),
             }),
           )
           .length(3),
@@ -115,8 +119,6 @@ const site = defineCollection({
         tiktok: z.string(),
         whatsapp: z.string(),
       }),
-      nav: z.array(z.object({ label: z.string(), href: z.string() })).min(1),
-      menuLabel: z.string(),
       footer: z.object({
         title: z.string(),
         lead: z.string(),
@@ -134,52 +136,8 @@ const site = defineCollection({
         title: z.string(),
         lead: z.string(),
         home: z.string(),
-        horses: z.string(),
       }),
     }),
-});
-
-const services = defineCollection({
-  loader: textFile('services'),
-  schema: z.object({
-    meta,
-    header: pageHeader,
-    sectionTitle: z.string(),
-    items: z
-      .array(z.object({ title: z.string(), text: z.string(), includes: z.array(z.string()) }))
-      .min(1),
-    cta: z.object({ title: z.string(), text: z.string(), button: z.string() }),
-  }),
-});
-
-const about = defineCollection({
-  loader: textFile('about'),
-  schema: z.object({
-    meta,
-    header: pageHeader,
-    figures: z.array(z.object({ value: z.string(), label: z.string() })).min(1),
-    story: z.object({ eyebrow: z.string(), title: z.string(), paragraphs: z.array(z.string()).min(1) }),
-    why: z.object({ eyebrow: z.string(), title: z.string(), ticks: z.array(z.string()).min(1) }),
-    cta: z.object({ title: z.string(), text: z.string(), button: z.string() }),
-  }),
-});
-
-const contact = defineCollection({
-  loader: textFile('contact'),
-  schema: z.object({
-    meta,
-    header: pageHeader,
-    channels: z
-      .array(
-        z.object({
-          link: z.enum(['whatsapp', 'instagram', 'tiktok', 'quiz']),
-          title: z.string(),
-          text: z.string(),
-          button: z.string(),
-        }),
-      )
-      .min(1),
-  }),
 });
 
 const pages = defineCollection({
@@ -201,13 +159,13 @@ const pages = defineCollection({
   }),
 });
 
-// The horse catalogue: one Markdown file per horse in src/content/horses/. The file's
-// `slug` becomes the entry id (the glob loader uses a front-matter `slug` when present),
-// so the page lives at /horses/<slug>/. The Markdown body is the description.
+// The horse catalogue: one Markdown file per horse in src/content/horses/. Since the
+// site went back to one page (2026-11-05) nothing renders it; the collection stays so
+// the build still checks the files the admin's Horses screen writes, and the catalogue
+// can come back from git history.
 const horses = defineCollection({
   loader: glob({ pattern: '*.md', base: './src/content/horses' }),
-  schema: ({ image }) =>
-    z
+  schema: z
       .object({
         name: z.string().min(1),
         slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'lowercase letters, digits and single hyphens'),
@@ -226,7 +184,9 @@ const horses = defineCollection({
         damsire: z.string().min(1),
         xrays: z.enum(['clean', 'minor findings', 'not done']),
         video: z.url({ protocol: /^https?$/ }).optional(),
-        photos: z.array(image()).min(1), // the first one is the cover
+        // The first one is the cover. Checked as a path, not imported with image(): an
+        // import would copy every horse photo into the build although nothing shows them.
+        photos: z.array(z.string().regex(/^\.\.\/\.\.\/assets\/horses\/[\w.-]+\.(?:jpe?g|png|webp)$/i, 'a photo in src/assets/horses/')).min(1),
         // Optional alt texts, same order as `photos`. Missing ones are generated from
         // the horse's name, age, colour and sex.
         photoAlt: z.array(z.string().min(1)).optional(),
@@ -242,90 +202,4 @@ const horses = defineCollection({
       }),
 });
 
-// Texts of the catalogue pages (/horses/, the horse pages, the home-page strip).
-const catalogue = defineCollection({
-  loader: textFile('catalogue'),
-  schema: z.object({
-    meta,
-    header: pageHeader,
-    filters: z.object({
-      title: z.string(),
-      sex: z.string(),
-      country: z.string(),
-      level: z.string(),
-      priceMin: z.string(),
-      priceMax: z.string(),
-      sort: z.string(),
-      any: z.string(),
-      sortNewest: z.string(),
-      sortPriceUp: z.string(),
-      sortPriceDown: z.string(),
-      reset: z.string(),
-      count: z.string(), // "{count}" is replaced
-      countOne: z.string(),
-      empty: z.string(),
-      emptyText: z.string(),
-      priceError: z.string(), // shown when "Price from" is above "Price up to"
-    }),
-    priceSteps: z.array(z.number().positive()).min(2),
-    labels: z.object({
-      sold: z.string(),
-      priceOnRequest: z.string(),
-      age: z.string(), // "{age}" is replaced
-      height: z.string(), // "{height}" is replaced
-      level: z.string(), // "{level}" is replaced; used for L, M and S
-      youngHorse: z.string(),
-      mare: z.string(),
-      gelding: z.string(),
-      stallion: z.string(),
-      BE: z.string(),
-      DE: z.string(),
-      NL: z.string(),
-    }),
-    detail: z.object({
-      back: z.string(),
-      eyebrow: z.string(), // "{country}" is replaced
-      lead: z.string(), // "{age}", "{colour}", "{sex}", "{height}", "{level}" are replaced
-      gallery: z.string(), // "{name}" is replaced
-      summaryTitle: z.string(), // hidden heading of the price box next to the photos
-      soldButton: z.string(), // button under soldNote, to the contact page
-      photo: z.string(), // "{n}" and "{total}" are replaced
-      prev: z.string(),
-      next: z.string(),
-      factsTitle: z.string(),
-      pedigreeTitle: z.string(),
-      descriptionTitle: z.string(),
-      videoTitle: z.string(),
-      videoLink: z.string(),
-      enquire: z.string(), // "{name}" is replaced
-      enquireNote: z.string(),
-      soldNote: z.string(),
-      facts: z.object({
-        price: z.string(),
-        age: z.string(),
-        born: z.string(),
-        height: z.string(),
-        sex: z.string(),
-        colour: z.string(),
-        breed: z.string(),
-        country: z.string(),
-        level: z.string(),
-        xrays: z.string(),
-        sire: z.string(),
-        dam: z.string(),
-        damsire: z.string(),
-      }),
-      xrays: z.object({ clean: z.string(), 'minor findings': z.string(), 'not done': z.string() }),
-      cta: z.object({ title: z.string(), text: z.string(), button: z.string() }),
-      metaTitle: z.string(), // "{name}", "{age}", "{colour}", "{sex}", "{level}" are replaced
-      metaDescription: z.string(),
-    }),
-    featured: z.object({ eyebrow: z.string(), title: z.string(), all: z.string() }),
-    quiz: z.object({
-      horseNote: z.string(), // "{name}" is replaced
-      horseRecap: z.string(),
-    }),
-  }),
-});
-
-export const collections = { home, site, services, about, contact, pages, horses, catalogue };
+export const collections = { home, site, pages, horses };

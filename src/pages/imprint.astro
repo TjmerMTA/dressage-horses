@@ -26,7 +26,8 @@ const one = missing.length === 1;
   {missing.length > 0 && (
     <p>
       As of {asOf}, {known.length > 0 ? 'the ' : 'our '}{listText(missing.map(lowerFirst))} {one ? 'is' : 'are'} not yet published on this page.{' '}
-      {one ? 'It' : 'They'} will be added as soon as the company has confirmed {one ? 'it' : 'them'}.
+      {one ? 'It' : 'They'} will be added as soon as the company has confirmed {one ? 'it' : 'them'}.{' '}
+      Until then, you can reach us through the <a href="/#quiz">quick quiz</a>.
     </p>
   )}
 

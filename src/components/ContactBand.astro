@@ -2,7 +2,7 @@
 // The mock-up's <footer class="contact">: closing call to action, socials, small print.
 // It is the site footer on every page. The grey photo box (#photo-contact) now holds a
 // real photograph, lazy-loaded (it is far below the fold).
-import { Image, Picture } from 'astro:assets';
+import { getImage, Picture } from 'astro:assets';
 import SocialLinks from './SocialLinks.astro';
 import { getSite, quizHref } from '../lib/texts';
 import { displayName, whatsappHref } from '../scripts/site-values.js';
@@ -11,6 +11,10 @@ const site = await getSite();
 const { footer } = site;
 const year = new Date().getFullYear();
 const path = Astro.url.pathname;
+// The small logo beside "© year name" is decorative. Written as a plain <img alt="">:
+// the <Image> component prints an empty alt as a bare `alt`, which is the same in HTML
+// but trips simple checkers that look for `alt=`.
+const [logo1, logo2] = await Promise.all([1, 2].map((d) => getImage({ src: site.logo, width: 34 * d, height: 34 * d })));
 ---
 
 <footer class="contact" id="contact">
@@ -36,7 +40,7 @@ const path = Astro.url.pathname;
       <SocialLinks />
     </div>
     <div class="foot">
-      <div class="foot-top"><Image class="logo logo-sm" src={site.logo} alt="" width={34} height={34} densities={[1, 2]} /><span>© <span id="year">{year}</span> <span id="brand2">{displayName(site)}</span></span></div>
+      <div class="foot-top"><img class="logo logo-sm" src={logo1.src} srcset={`${logo1.src} 1x, ${logo2.src} 2x`} alt="" width="34" height="34" loading="lazy" decoding="async" /><span>© <span id="year">{year}</span> <span id="brand2">{displayName(site)}</span></span></div>
       <nav class="foot-links" aria-label="Footer">
         {footer.links.map((l) => <a href={l.href} aria-current={path === l.href ? 'page' : undefined}>{l.label}</a>)}
       </nav>

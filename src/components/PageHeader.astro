@@ -1,7 +1,7 @@
 ---
 // Header for the inner pages: the mock-up's top bar, then eyebrow, the page's only <h1>
 // and a lead paragraph — the hero's typography without the photograph.
-import SiteNav from './SiteNav.astro';
+import SiteTop from './SiteTop.astro';
 
 interface Props {
   eyebrow: string;
@@ -14,7 +14,7 @@ const { eyebrow, title, lead } = Astro.props;
 
 <header class="page-head">
   <div class="wrap">
-    <SiteNav />
+    <SiteTop />
     <div class="page-main">
       <div class="eyebrow">{eyebrow}</div>
       <h1>{title}</h1>

@@ -10,25 +10,6 @@
     "tiktok": "",
     "whatsapp": ""
   },
-  "nav": [
-    {
-      "label": "Horses",
-      "href": "/horses/"
-    },
-    {
-      "label": "Services",
-      "href": "/services/"
-    },
-    {
-      "label": "About",
-      "href": "/about/"
-    },
-    {
-      "label": "Contact",
-      "href": "/contact/"
-    }
-  ],
-  "menuLabel": "Menu",
   "footer": {
     "title": "Ready to find your horse?",
     "lead": "Take the quick quiz, or write directly.",
@@ -38,26 +19,6 @@
     "photoAlt": "Smiling woman in a white blouse stands beside a braided bay horse among green trees",
     "photoPosition": "5% 36%",
     "links": [
-      {
-        "label": "Home",
-        "href": "/"
-      },
-      {
-        "label": "Horses",
-        "href": "/horses/"
-      },
-      {
-        "label": "Services",
-        "href": "/services/"
-      },
-      {
-        "label": "About",
-        "href": "/about/"
-      },
-      {
-        "label": "Contact",
-        "href": "/contact/"
-      },
       {
         "label": "Privacy policy",
         "href": "/privacy/"
@@ -73,8 +34,7 @@
     "metaTitle": "Page not found — Dressage horses",
     "eyebrow": "Page not found",
     "title": "This page does not exist",
-    "lead": "The address may be mistyped, or the page has moved. A horse that has been taken off the list no longer has its own page.",
-    "home": "GO TO THE HOME PAGE",
-    "horses": "SEE ALL HORSES"
+    "lead": "The address may be mistyped, or the page has moved. Everything is on the home page.",
+    "home": "GO TO THE HOME PAGE"
   }
 }

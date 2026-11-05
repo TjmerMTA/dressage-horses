@@ -8,7 +8,7 @@ import {
 import { buildFrontMatter, parseFrontMatter, valuesOf } from "./frontmatter.js";
 import { refreshGoLiveCount } from "./golive.js";
 import { trackCommit } from "./publish.js";
-import { IMPRINT_FIELDS, displayName, isSet, socialHref, unsetValues, whatsappHref } from "../site-values.js";
+import { IMPRINT_FIELDS, displayName, isOneEmojiOrNone, isSet, socialHref, unsetValues, whatsappHref } from "../site-values.js";
 import { confirmDialog, errorBox, field, h, nextId, spinner, toast } from "./ui.js";
 
 let dirty = false;
@@ -64,11 +64,8 @@ export async function renderTexts(root, route = "") {
     ...md.filter((e) => e.name.endsWith(".md")).map((e) => ({ name: e.name, href: `#/texts/p/${e.name}` })),
   ].sort((a, b) => (TEXT_FILE_ORDER.indexOf(a.name) + 1 || 99) - (TEXT_FILE_ORDER.indexOf(b.name) + 1 || 99));
   const HINTS = {
-    "site.json": "Company name, WhatsApp number, Instagram and TikTok, menu and footer.",
-    "home.json": "Everything on the home page, including the quiz questions.",
-    "services.json": "The Services page.",
-    "about.json": "The About page: figures, story, why us.",
-    "contact.json": "The Contact page.",
+    "site.json": "Company name, WhatsApp number, Instagram and TikTok, footer.",
+    "home.json": "Everything on the page, including the quiz questions and their emoji.",
     "privacy.md": "The privacy policy page.",
     "imprint.md": "The imprint (company details) page.",
   };
@@ -225,7 +222,9 @@ async function renderJsonFile(root, name, focus = "") {
     checks.push(() => {
       const val = input.value.trim();
       let msg = "";
-      if (typeof origValue === "string" && origValue.trim() && !val) msg = "This text can’t be empty.";
+      const isIcon = name === "home.json" && pattern(path) === "quiz.steps[].options[].icon";
+      if (isIcon) msg = isOneEmojiOrNone(input.value) ? "" : "Use one emoji, or leave it empty.";
+      else if (typeof origValue === "string" && origValue.trim() && !val) msg = "This text can’t be empty.";
       else if (val.length > 5000) msg = "This text is too long (over 5,000 characters).";
       else if (tokens.some((t) => !val.includes(t))) msg = `Please keep ${tokens.filter((t) => !val.includes(t)).join(" and ")} in this text.`;
       else if (isUrl && val && !/^https:\/\/[^\s]+\.[^\s]+/.test(val)) msg = "Enter a full web address starting with https://.";

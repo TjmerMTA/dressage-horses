@@ -32,21 +32,17 @@ export const MIN_YEAR = 1990;
 
 /** Friendly names for text files; unknown files get a name made from the file name. */
 export const TEXT_FILE_LABELS = {
-  "site.json": "Company, contacts & menus",
-  "catalogue.json": "Horse catalogue pages",
+  "site.json": "Company, contacts & footer",
   "home.json": "Home page",
-  "services.json": "Services page",
-  "about.json": "About page",
-  "contact.json": "Contact page",
   "privacy.md": "Privacy policy",
   "imprint.md": "Imprint",
 };
-export const TEXT_FILE_ORDER = ["site.json", "home.json", "catalogue.json", "services.json", "about.json", "contact.json", "privacy.md", "imprint.md"];
+export const TEXT_FILE_ORDER = ["site.json", "home.json", "privacy.md", "imprint.md"];
 
 /** Keys in the text files that are technical and not shown (dotted paths, [] = any index). */
 export const HIDDEN_TEXT_KEYS = new Set([
-  "site.json:endpoint", "site.json:logo", "site.json:nav[].href", "site.json:footer.links[].href",
-  "home.json:quiz.steps[].key", "contact.json:channels[].link",
+  "site.json:endpoint", "site.json:logo", "site.json:footer.links[].href",
+  "home.json:quiz.steps[].key",
 ]);
 
 /** Friendly labels for keys (by key name, anywhere). */
@@ -58,12 +54,6 @@ export const KEY_LABELS = {
   options: "Answers",
   errors: "Error messages",
   recap: "Summary labels on the thank-you screen",
-  header: "Page heading",
-  includes: "What is included",
-  figures: "Figures",
-  story: "Our story",
-  why: "Why us",
-  channels: "Ways to contact",
   brand: "Company name",
   meta: "Search engines (title and description)",
   eyebrow: "Small heading above the title",
@@ -76,20 +66,19 @@ export const KEY_LABELS = {
   photo: "Photo",
   logoAlt: "Logo description",
   skipLink: "“Skip to content” link text",
-  menuLabel: "Menu button text",
   stickyCta: "Floating button text (phones)",
   notFound: "“Page not found” page",
   metaTitle: "Browser tab title",
   home: "Button to the home page",
-  horses: "Button to the horse list",
   whatsapp: "WhatsApp",
   instagram: "Instagram link",
   tiktok: "TikTok link",
   links: "Social links",
-  nav: "Top menu",
   footer: "Footer",
   stepLabel: "Progress text (“{step}” and “{total}” are filled in)",
   thanksNamed: "Thank-you heading (“{name}” is filled in)",
+  icon: "Emoji before the answer (one, or leave empty)",
+  answer: "Answer",
   noScript: "Quiz box text when the visitor’s browser has JavaScript off",
-  noScriptLink: "Link to the contact page under that text",
+  noScriptLink: "Link to the imprint (company contact details) after that text",
 };

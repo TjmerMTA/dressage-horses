@@ -28,27 +28,54 @@
         "key": "region",
         "title": "Where are you from?",
         "options": [
-          "USA / Canada",
-          "Europe",
-          "GCC (Gulf countries)",
-          "Asia"
+          {
+            "icon": "🌎",
+            "answer": "USA / Canada"
+          },
+          {
+            "icon": "🌍",
+            "answer": "Europe"
+          },
+          {
+            "icon": "🏜️",
+            "answer": "GCC (Gulf countries)"
+          },
+          {
+            "icon": "🌏",
+            "answer": "Asia"
+          }
         ]
       },
       {
         "key": "budget",
         "title": "What is your budget?",
         "options": [
-          "€30,000 – 60,000",
-          "€60,000 – 100,000",
-          "€100,000+"
+          {
+            "icon": "💶",
+            "answer": "€30,000 – 60,000"
+          },
+          {
+            "icon": "💰",
+            "answer": "€60,000 – 100,000"
+          },
+          {
+            "icon": "💎",
+            "answer": "€100,000+"
+          }
         ]
       },
       {
         "key": "format",
         "title": "How do you want to buy?",
         "options": [
-          "Online purchase",
-          "I will come to try the horse in person"
+          {
+            "icon": "💻",
+            "answer": "Online purchase"
+          },
+          {
+            "icon": "✈️",
+            "answer": "I will come to try the horse in person"
+          }
         ]
       }
     ],
@@ -77,7 +104,7 @@
     },
     "whatsappNow": "Write on WhatsApp now",
     "noScript": "This quiz needs JavaScript, which is switched off in your browser.",
-    "noScriptLink": "Contact us another way"
+    "noScriptLink": "The company’s contact details are in the imprint"
   },
   "how": {
     "eyebrow": "Process",
