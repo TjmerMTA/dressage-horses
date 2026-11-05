@@ -36,7 +36,7 @@ curl -s https://dressage-horses-api.<your-subdomain>.workers.dev/health   # → 
 | Name | What it is |
 |---|---|
 | `ADMIN_PASSWORD_HASH` | Lowercase hex SHA-256 of the admin password (64 characters). The password itself is stored nowhere. Use a long passphrase (4+ random words): a plain SHA-256 is fast to brute-force if the hash ever leaked. |
-| `NOTION_TOKEN` | *Optional.* The Notion internal integration secret (`ntn_…`) from "Notion" below. Without it, Notion is off. |
+| `NOTION_TOKEN` | *Optional, and not needed any more.* Notion is set up from the admin panel ("Notion" below). A key saved there wins over this secret. |
 | `GITHUB_TOKEN` | A **fine-grained** personal access token. Repository access: **only** `TjmerMTA/dressage-horses`. Permissions: **Contents: Read and write** and **Actions: Read** (Metadata: Read is added automatically). Nothing else. Actions: Read only lets the admin show "publishing… / published / build failed"; without it the panel still works and falls back to watching the live site's `/version.json`. Give it an expiry date and put a reminder in the calendar. |
 
 `wrangler.toml` only names these. To rotate either one, run the same `secret put` again.
@@ -56,11 +56,10 @@ Changing the password hash does not end live sessions; they expire within 12 hou
 | `ALLOWED_ORIGINS` | `https://dev.siteboosty.com`. Comma-separated if another origin is ever needed. |
 | `GITHUB_REPO` | `TjmerMTA/dressage-horses` |
 | `GITHUB_BRANCH` | `main` |
-
-| `NOTION_DB` | Empty until Notion is connected. Then the id of his database (or its whole link). See "Notion" below. |
-| `NOTION_STAGE_PROP` | `Face`: his status property the board is grouped by. |
-| `NOTION_STAGE_VALUE` | `Lead`: the board column (status option) a new card lands in. |
-| `NOTION_COMMENT_PROP` | `comment on phase`: his text property that gets every answer. |
+| `NOTION_DB` | Empty. Only a fallback: the database is chosen in the admin panel. |
+| `NOTION_STAGE_PROP` | `Face`. Fallback for "Property the board is grouped by" on the Notion screen. |
+| `NOTION_STAGE_VALUE` | `Lead`. Fallback for "Column for new requests". |
+| `NOTION_COMMENT_PROP` | `comment on phase`. Fallback for "Text property for the answers". |
 
 `GITHUB_API_BASE` and `NOTION_API_BASE` exist only so the tests can point at mocks. Leave them unset in production.
 
@@ -71,14 +70,31 @@ Each lead the quiz sends becomes a new card in the client's **existing** Notion 
 the options of a status property called **Face**: a card moves between columns when Face
 changes. A card sets three of his properties and nothing else:
 
-| His property | What goes in | Setting (`wrangler.toml`) |
+| His property | What goes in | Field on the admin's Notion screen |
 |---|---|---|
 | the title property (whatever it is called) | the visitor's name | none |
-| **Face**: the status the board is grouped by (a Select works too) | the option **Lead**, so the card lands in that column | `NOTION_STAGE_PROP = "Face"`, `NOTION_STAGE_VALUE = "Lead"` |
-| **comment on phase**: a Text property | every answer, as plain text | `NOTION_COMMENT_PROP = "comment on phase"` |
+| **Face**: the status the board is grouped by (a Select works too) | the option **Lead**, so the card lands in that column | "Property the board is grouped by", "Column for new requests" |
+| **comment on phase**: a Text property | every answer, as plain text | "Text property for the answers" |
 
-If he renames the property or the column in Notion, change the setting to the new name and
-run `npx wrangler deploy`. No code changes.
+If he renames the property or the column in Notion, he presses **Check connection** on the
+Notion screen, picks the new name from the list and saves. No deploy, no code changes.
+
+### Where the settings live
+
+All of it is set on the admin panel's **Notion** screen and stored in KV under one key,
+`notion:config`: the key, the database id, the three names, and an on/off switch. Each field
+the panel has never saved falls back to `wrangler.toml` (and the `NOTION_TOKEN` secret), so
+nothing changed on the day this was deployed. A key removed from the panel stays removed:
+the `NOTION_TOKEN` secret is then not used either.
+
+**The key is a secret.** It sits in KV, which only this Worker can read, and leaves the
+Worker only in the `Authorization` header of a request to `api.notion.com`. It is never
+logged and never sent to the browser: the panel learns only whether a key is saved and its
+last four characters. An empty key field means "keep the saved one"; removing it is its own
+button with a confirmation (`{"removeToken":true}`).
+
+A change saved in the panel reaches every Cloudflare location within about a minute (KV is
+eventually consistent), so a lead in that minute can still go out with the old settings.
 
 **How the Worker finds them.** The names he has given us have varied, so the Worker is
 forgiving. Upper/lower case and spaces never count (`Face`, `face`, `FA CE` are the same).
@@ -93,13 +109,14 @@ Every card writes one log line naming what was chosen and how, for example
 `notion card: title "Клієнт"; stage "Face" (status, configured name); comment "Comment on
 phase" (rich_text, configured name)`. It holds property names and types only, never the
 lead. After the first real lead, check it in Cloudflare (Workers → dressage-horses-api →
-Logs). If it says "first status property" or "named like comment", the guess was used: put
-the real names into `wrangler.toml` so it no longer depends on guessing.
+Logs). If it says "first status property" or "named like comment", the guess was used: pick
+the real names on the Notion screen (Check connection, then the lists) so it no longer depends
+on guessing.
 
 **The option is never invented.** If "Face" has no option "Lead", the card is created without
 a stage, and the error names the options his database actually has (e.g. `stage: "Face" has
-no option "Lead"; it has: Лід, Підбір, Угода`). Copy the right one into `NOTION_STAGE_VALUE`
-and deploy.
+no option "Lead"; it has: Лід, Підбір, Угода`). **Check connection** shows the same, and the
+column list then offers only options that exist.
 
 The text in "comment on phase" reads like this (one answer per line, in the quiz's order,
 then the contact, the page and the time; "Horse" only when the lead came from a horse,
@@ -130,70 +147,45 @@ Received: 2026-11-05 08:23 UTC
   lead **"Not in Notion yet"**. **Send N to Notion** on the Leads screen sends every lead
   that has no card yet. That is also how the leads that arrived before Notion was connected
   get in. A lead that already has a card is never sent twice.
-- **Until both `NOTION_TOKEN` and `NOTION_DB` are set, nothing happens at all.** No call, no
-  log line, and nothing about Notion in the admin. The Worker behaves exactly as before.
+- **Until there is both a key and a database, or while Notion is switched off on the Notion
+  screen, nothing happens at all.** No call, no log line, and no Notion marks or "Send N to
+  Notion" on the Leads screen. The Worker behaves exactly as before. Switched off, the key and
+  the database are kept; the leads that arrived meanwhile go in with "Send N to Notion" once it
+  is on again.
 - The Worker reads his database's list of properties to find these three. It keeps that
   list for 5 minutes, and reads it again at once when a card comes out incomplete or Notion
   refuses one.
 
-### Connecting it: what the client does (about 10 minutes)
+### Connecting it: what the client does (about 10 minutes, all in the browser)
 
 1. **Make the key.** Go to <https://www.notion.so/my-integrations> and click **New
    integration**. Name: `Website leads`. Workspace: the one with the database. Type:
    **Internal**. Save. On the **Configuration** tab, under **Capabilities**, tick **Read
    content** and **Insert content** (nothing else is needed). Click **Show** next to
-   **Internal Integration Secret** and copy it. It starts with `ntn_`. Treat it like a
-   password: send it to the developer through a password manager or another private
-   channel, never in e-mail or chat.
+   **Internal Integration Secret** and copy it. It starts with `ntn_`. It is a password:
+   paste it only into the admin panel, never into e-mail or chat.
 2. **Let the key into the database.** Open "Підбір для клієнтів / Clients Selection" as a
    full page. If it sits inside another page, click its name and then **↗ Open as full
    page**. Click **•••** (top right) → **Connections** → **Connect to** → `Website leads`
-   → **Confirm**. Without this step Notion answers "not found" and the admin shows
-   *Notion can't see the database*.
-3. **Copy the database's address.** Still on that full page: **•••** → **Copy link**. It
-   looks like `https://www.notion.so/<workspace>/<32 letters and digits>?v=<32 more>`. Send
-   the whole link: the database id is the 32 characters **before** `?v=`, and the Worker
-   also accepts the whole link. (The part after `?v=` is the view, not the database.)
-4. **Check the three names.** In the database, look at the property the board is grouped
-   by (board view → **•••** → **Group** shows **Group by: …**), the exact name of the column
-   new leads belong in, and the text property for the answers. Copy them from Notion rather
-   than typing them. If they are not `Face`, `Lead` and `comment on phase` (case and spaces
-   do not matter), send the developer the real names. "comment on phase" must be a **Text**
-   property.
-5. **The developer stores the key** as a Worker secret, from this `worker/` folder:
-
-   ```sh
-   read -rs "NT?Notion secret: " && echo          # zsh   (bash: read -rsp "Notion secret: " NT; echo)
-   printf %s "$NT" | npx wrangler secret put NOTION_TOKEN
-   unset NT
-   npx wrangler secret list                        # NOTION_TOKEN must be listed
-   ```
-
-   **Pipe the value in, as above. Do not type it at the `secret put` prompt.** In a shell
-   that is not interactive (an agent's, a script's, CI) `wrangler secret put` stores an
-   **empty** secret without any warning. That has already cost this project a day. An empty
-   token simply leaves Notion switched off.
-6. **The developer puts the database into `wrangler.toml`** (plain values, not secrets),
-   corrects the three names if step 4 said so, and deploys:
-
-   ```toml
-   NOTION_DB = "<the 32 characters from step 3, or the whole link>"
-   NOTION_STAGE_PROP = "Face"
-   NOTION_STAGE_VALUE = "Lead"
-   NOTION_COMMENT_PROP = "comment on phase"
-   ```
-
-   ```sh
-   npx wrangler deploy
-   ```
-7. **Check it.** Fill in the quiz on the site once. Within a few seconds a card with that
+   → **Confirm**. Without this step **Check connection** says *Notion can't see this database*.
+3. **Copy the database's link.** Still on that full page: **•••** → **Copy link**.
+4. **In the admin panel → Notion:** paste the key and the link, press **Check connection**.
+   It answers in plain English: connected to "<his database's title>", or one of *the key is
+   wrong*, *Notion can't see this database* (step 2), *that is not a database* (step 3, the
+   link of another page), *Notion isn't answering*.
+5. **Pick the three names from the lists** that the check filled from his database: the
+   property the board is grouped by (Face is pre-selected when it exists), the column for new
+   requests (Lead), the text property for the answers (comment on phase). Press **Save**. The
+   screen checks the connection again and says "Saved. Notion works."
+6. **Check it.** Fill in the quiz on the site once. Within a few seconds a card with that
    name appears in the **Lead** column, with the answers in "comment on phase". In the
    admin, the lead says **In Notion**. If it says **In Notion, incomplete**, hover it: it
-   names the property that was not found. Fix the name (step 4 and 6).
-8. **Bring in the earlier leads.** Leads screen → **Send N to Notion**. (Choose dates first
+   names the property that was not found. Fix it on the Notion screen.
+7. **Bring in the earlier leads.** Leads screen → **Send N to Notion**. (Choose dates first
    to send only some of them.)
 
-To switch Notion off again, empty `NOTION_DB` and deploy, or `npx wrangler secret delete NOTION_TOKEN`.
+To pause Notion, untick **Send new requests to Notion** and save (the key stays). To stop it
+for good, **Remove the saved key**.
 
 ## API
 
@@ -214,7 +206,10 @@ gets a 403. Admin calls send `Authorization: Bearer <token>`.
 | `DELETE /admin/content` | session | `{"path","sha","message"?}`. Same path rules as PUT (text files only, so photos are never deleted from the panel). → `{"ok","path","commit"}` |
 | `GET /admin/raw?path=` | session | The bytes of one photo under `src/assets/horses/` (JPEG/PNG/WebP, up to 12 MB), so the panel can show photos that the site has not built yet. |
 | `GET /admin/deploy-status?sha=<commit>` | session | `{"ok","available","run","latest"}`: the newest Actions run for that commit and the newest run on `main`, each `{status, conclusion, headSha, createdAt, url}`. `available:false` when the token lacks Actions: Read. |
-| `POST /admin/notion/resend` | session | `{"id":"<lead id>"}`, or `{"from":"YYYY-MM-DD","to":"YYYY-MM-DD"}` (both optional; `{}` = every lead). Sends the leads that have no card in Notion yet, at most 10 per call, never-tried first; leads with a card (`sent` or `partial`) are skipped, and so is a lead from the last minute that may still be on its way. Stops at an error every lead would hit (bad key, no access, rate limit, outage). → `{"ok","matched","sent","partial","failed","alreadySent","pending","remaining","stopped"?}`; call again while `remaining` > 0. `503` while Notion is not configured. |
+| `GET /admin/notion/config` | session | `{"ok","active","enabled","token":{"set","last4","from"},"db","dbFrom","dbValid","stageProp","stageValue","commentProp","defaults","updatedAt"?}`. Never the key: `last4` is its last four characters (null for a key under 20 characters). `from`/`dbFrom`: `"panel"`, `"server"` (wrangler.toml) or null. `active` = cards are being made. |
+| `PUT /admin/notion/config` | session | Any of `{"token","removeToken":true,"db","stageProp","stageValue","commentProp","enabled"}`, max 4 KB; only what is sent changes. `token` must look like a Notion key (`ntn_…` or `secret_…`, no spaces); an empty `token` is refused, removal is `removeToken`. `db`: an id with or without dashes, or a pasted database link (the id is taken from the path, not from `?v=`); `""` clears it. A name `""` goes back to the default. → the same as GET. |
+| `POST /admin/notion/check` | session | `{"token"?,"db"?,"stageProp"?,"stageValue"?,"commentProp"?}`: what is not given comes from the saved settings. Calls `GET /v1/databases/{id}`. 30 per IP per 10 min → 429. Always 200 once it has asked Notion: `{"ok":true,"database":{"id","title"},"properties":[{"name","type","options"?}],"use":{"stageProp","stageValue","commentProp"},"problems":[…],"active"}` (`use` = his exact names a card would use, `""` where nothing fits), or `{"ok":false,"cause","status","message","active"}` with `cause` `"token"` (401), `"access"` (404, or 403 without Read content), `"not_database"` (400: a page, not a database) or `"down"` (5xx, 429, timeout). `message` is a sentence for the owner; Notion's own message text is never passed on. Saves nothing. |
+| `POST /admin/notion/resend` | session | `{"id":"<lead id>"}`, or `{"from":"YYYY-MM-DD","to":"YYYY-MM-DD"}` (both optional; `{}` = every lead). Sends the leads that have no card in Notion yet, at most 10 per call, never-tried first; leads with a card (`sent` or `partial`) are skipped, and so is a lead from the last minute that may still be on its way. Stops at an error every lead would hit (bad key, no access, rate limit, outage). → `{"ok","matched","sent","partial","failed","alreadySent","pending","remaining","stopped"?}`; call again while `remaining` > 0. `503` while Notion is not configured (`notion not configured`) or switched off (`notion is switched off`). |
 | `POST /admin/upload` | session | `multipart/form-data` with `slug` + `file`, or JSON `{"slug","data":"<base64 or data: URL>"}`. Max 8 MB. JPEG/PNG/WebP, detected from the bytes. Commits `src/assets/horses/<slug>-<n>.<ext>` with the next free `n`. → `{"ok","path","sha"}` |
 
 **Paths.** Read and write only under `src/content/`, `src/assets/horses/` and `public/`.
@@ -277,7 +272,11 @@ invalid session, oversized bodies, forbidden and traversal paths, fake images an
 limits. For Notion: no call at all while either value is missing; the exact text of a card with
 every answer and of one with the optional answers missing; a long set of answers; the
 partial card when a property is missing; Notion answering 401, 429 and 500; the retry; the
-failure mark; the resend endpoint; his properties changing under a cached schema. It also checks that no password, token
+failure mark; the resend endpoint; his properties changing under a cached schema. A fourth
+Worker covers the Notion screen's endpoints: wrangler settings that do not work, overridden
+by what the panel saves; every refused input; the masked read-back; a pasted link turned
+into the id; the check's four failure causes and its success; switching off (no Notion call
+at all) and on; removing the key; the check's rate limit. It also checks that no password, token
 or hash shows up in the wrangler log. It never contacts GitHub, Notion or Cloudflare. The
 exit code is the number of failed checks.
 
@@ -305,6 +304,9 @@ exit code is the number of failed checks.
   his database into one with several data sources (a newer Notion feature), this version
   cannot write into it and every lead is marked "Not in Notion yet". The leads stay safe in
   KV; the Worker then needs the newer API.
+- **A lead that arrives while Notion is switched off** shows "Sending to Notion…" for its first
+  minute (the same window as a lead that is really on its way), and "Send N to Notion" skips it
+  for that minute. After that it is "Not in Notion yet" and goes in with the button.
 - Notion allows about 3 requests a second. One lead is 1 to 3 requests, so only "Send N to
   Notion" over hundreds of old leads can hit it. Then it stops, says "Notion was busy", and
   the next click carries on.

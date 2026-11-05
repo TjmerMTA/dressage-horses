@@ -4,19 +4,22 @@
 //
 // A card sets three properties of his and nothing else:
 //   - his title property                          ← the visitor's name
-//   - the stage, NOTION_STAGE_PROP ("Face")       ← NOTION_STAGE_VALUE ("Lead"): the board column
-//   - the comment, NOTION_COMMENT_PROP ("comment on phase") ← every answer, as plain text
+//   - the stage property ("Face")                 ← the stage value ("Lead"): the board column
+//   - the comment property ("comment on phase")   ← every answer, as plain text
+// Which key, which database and which names: see notion-settings.ts (the admin panel's
+// "Notion" screen, stored in KV, with the wrangler.toml values as the fallback).
 // His schema is read (and cached in KV for 5 minutes) only to find those and to learn whether
 // the stage is a status or a select. The names are found forgivingly (see findStage /
 // findComment), and the property chosen is logged by name and type. If the stage or the
 // comment cannot be used, the card is still created, the answers go into the page's text,
 // and the lead is marked "partial" so the admin shows it. An option is never invented.
 //
-// Not configured (NOTION_TOKEN or NOTION_DB empty) means: no call, no log, no trace.
+// Not configured (no key or no database) or switched off means: no call, no log, no trace.
 // Nothing about the lead and nothing about the token is ever logged.
 
 import { Env, HttpError, json, readJson } from "./http";
 import { Lead, findLeadKey, listLeads, parseDay, putLead } from "./leads";
+import { NotionSettings, loadNotion, notionSettings } from "./notion-settings";
 
 const NOTION_VERSION = "2022-06-28";
 const ATTEMPTS = 3; // the first try and two retries
@@ -37,10 +40,6 @@ export const DEFAULT_STAGE_VALUE = "Lead";
 export const DEFAULT_COMMENT_PROP = "comment on phase";
 /** Select properties that may be the stage when no name matches and there is no status property. */
 const STAGE_SELECT_NAMES = ["face", "phase", "фаза", "status", "статус"];
-
-export function notionConfigured(env: Env): boolean {
-  return Boolean((env.NOTION_TOKEN || "").trim() && (env.NOTION_DB || "").trim());
-}
 
 /**
  * The database id from what the client pasted: the bare id (with or without dashes) or the
@@ -100,14 +99,14 @@ function richText(s: string): { type: "text"; text: { content: string } }[] {
 
 // ---- his schema: only what it takes to find the three properties --------------------------
 
-interface Prop {
+export interface Prop {
   name: string;
   type: string;
   /** Option names of a select or status property. */
   options?: string[];
 }
 
-function parseSchema(body: unknown): Prop[] | null {
+export function parseSchema(body: unknown): Prop[] | null {
   const props = (body as { properties?: unknown } | null)?.properties;
   if (!props || typeof props !== "object") return null;
   const out: Prop[] = [];
@@ -128,8 +127,7 @@ function parseSchema(body: unknown): Prop[] | null {
 
 const norm = (s: string) => s.normalize("NFC").trim().replace(/\s+/g, " ").toLowerCase();
 /** For matching names: case and spaces do not count ("Comment on phase" = "commentonphase"). */
-const key = (s: string) => s.normalize("NFC").replace(/\s+/g, "").toLowerCase();
-const setting = (v: string | undefined, fallback: string) => (v || "").trim() || fallback;
+export const key = (s: string) => s.normalize("NFC").replace(/\s+/g, "").toLowerCase();
 
 interface Chosen {
   prop?: Prop;
@@ -177,45 +175,66 @@ export interface Card {
   chosen: string;
 }
 
-/** The page to create for this lead in a database with this schema. */
-export function buildCard(env: Env, lead: Lead, schema: Prop[], dbId: string): Card {
-  const stageName = setting(env.NOTION_STAGE_PROP, DEFAULT_STAGE_PROP);
-  const stageValue = setting(env.NOTION_STAGE_VALUE, DEFAULT_STAGE_VALUE);
-  const commentName = setting(env.NOTION_COMMENT_PROP, DEFAULT_COMMENT_PROP);
+export interface Names {
+  stageProp: string;
+  stageValue: string;
+  commentProp: string;
+}
+
+export interface Plan {
+  title: Prop;
+  stage: Chosen;
+  /** His exact spelling of the stage option, when the stage property has it. */
+  option?: string;
+  comment: Chosen;
+  problems: string[];
+  chosen: string;
+}
+
+/** Which of his properties a card would use with these names, and what is missing. */
+export function planCard(schema: Prop[], names: Names): Plan {
   const title = schema.find((p) => p.type === "title")!;
-  const properties: Record<string, unknown> = { [title.name]: { title: richText(lead.name) } };
   const problems: string[] = [];
   const chosen: string[] = [`title "${title.name}"`];
 
-  const stage = findStage(schema, stageName);
+  const stage = findStage(schema, names.stageProp);
+  let option: string | undefined;
   if (!stage.prop) {
-    problems.push(`stage: no status or select property "${stageName}"`);
+    problems.push(`stage: no status or select property "${names.stageProp}"`);
     chosen.push("stage none");
   } else {
     const st = stage.prop;
     chosen.push(`stage "${st.name}" (${st.type}, ${stage.how})`);
     // An option that does not exist is never created: it would add a column to his board.
-    const option = (st.options || []).find((o) => key(o) === key(stageValue));
-    if (!option) problems.push(`stage: "${st.name}" has no option "${stageValue}"; it has: ${shortList(st.options || [])}`);
-    else properties[st.name] = st.type === "status" ? { status: { name: option } } : { select: { name: option } };
+    option = (st.options || []).find((o) => key(o) === key(names.stageValue));
+    if (!option) problems.push(`stage: "${st.name}" has no option "${names.stageValue}"; it has: ${shortList(st.options || [])}`);
   }
 
-  const lines = leadLines(lead);
-  const comment = findComment(schema, commentName);
+  const comment = findComment(schema, names.commentProp);
   if (!comment.prop) {
-    problems.push(`comment: no text property "${commentName}"`);
+    problems.push(`comment: no text property "${names.commentProp}"`);
     chosen.push("comment none");
   } else {
     chosen.push(`comment "${comment.prop.name}" (${comment.prop.type}, ${comment.how})`);
-    properties[comment.prop.name] = { rich_text: richText(lines.join("\n")) };
   }
+  return { title, stage, ...(option !== undefined ? { option } : {}), comment, problems, chosen: chosen.join("; ") };
+}
+
+/** The page to create for this lead in a database with this schema. */
+export function buildCard(names: Names, lead: Lead, schema: Prop[], dbId: string): Card {
+  const plan = planCard(schema, names);
+  const properties: Record<string, unknown> = { [plan.title.name]: { title: richText(lead.name) } };
+  const st = plan.stage.prop;
+  if (st && plan.option) properties[st.name] = st.type === "status" ? { status: { name: plan.option } } : { select: { name: plan.option } };
+  const lines = leadLines(lead);
+  if (plan.comment.prop) properties[plan.comment.prop.name] = { rich_text: richText(lines.join("\n")) };
 
   const body: Record<string, unknown> = { parent: { database_id: dbId }, properties };
   // Whatever could not go where it belongs is written into the page, so nothing is lost.
-  if (problems.length) {
+  if (plan.problems.length) {
     body["children"] = lines.map((l) => ({ object: "block", type: "paragraph", paragraph: { rich_text: richText(l) } }));
   }
-  return { body, problems, chosen: chosen.join("; ") };
+  return { body, problems: plan.problems, chosen: plan.chosen };
 }
 
 // ---- talking to Notion -----------------------------------------------------------------------
@@ -230,7 +249,7 @@ export interface SendResult {
   global?: boolean;
 }
 
-interface CallResult {
+export interface CallResult {
   ok: boolean;
   status: number;
   code: string;
@@ -242,11 +261,11 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const base = (env: Env) => (env.NOTION_API_BASE || "https://api.notion.com").replace(/\/+$/, "");
 
 /** One request to Notion. Throws only on a network error or a timeout. */
-async function call(env: Env, method: "GET" | "POST", path: string, body?: unknown): Promise<CallResult> {
+export async function call(env: Env, token: string, method: "GET" | "POST", path: string, body?: unknown): Promise<CallResult> {
   const resp = await fetch(`${base(env)}${path}`, {
     method,
     headers: {
-      Authorization: `Bearer ${(env.NOTION_TOKEN || "").trim()}`,
+      Authorization: `Bearer ${token}`,
       "Notion-Version": NOTION_VERSION,
       "User-Agent": "dressage-horses-api",
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
@@ -269,15 +288,16 @@ async function call(env: Env, method: "GET" | "POST", path: string, body?: unkno
   };
 }
 
-const schemaKey = (dbId: string) => `notion:schema:${dbId}`;
+export const schemaKey = (dbId: string) => `notion:schema:${dbId}`;
+export const SCHEMA_CACHE_TTL_SEC = SCHEMA_TTL_SEC;
 
 /** His properties: from the KV cache, or fresh from Notion (and then cached for 5 minutes). */
-async function loadSchema(env: Env, dbId: string, fresh: boolean): Promise<{ schema?: Prop[]; cached: boolean; failure?: CallResult }> {
+async function loadSchema(env: Env, s: NotionSettings, dbId: string, fresh: boolean): Promise<{ schema?: Prop[]; cached: boolean; failure?: CallResult }> {
   if (!fresh) {
     const hit = await env.KV.get<Prop[]>(schemaKey(dbId), "json").catch(() => null);
     if (Array.isArray(hit) && hit.length) return { schema: hit, cached: true };
   }
-  const r = await call(env, "GET", `/v1/databases/${dbId}`);
+  const r = await call(env, s.token, "GET", `/v1/databases/${dbId}`);
   if (!r.ok) return { cached: false, failure: r };
   const schema = parseSchema(r.body);
   if (!schema) return { cached: false, failure: { ok: false, status: 502, code: "no_schema" } };
@@ -294,9 +314,9 @@ function failure(r: CallResult, prefix: string): SendResult & { transient: boole
 }
 
 /** One lead → one new card, with two retries on errors that can pass (429, 409, 5xx, network). */
-export async function sendToNotion(env: Env, lead: Lead): Promise<SendResult> {
-  const dbId = databaseId(env.NOTION_DB || "");
-  if (!dbId) return { ok: false, reason: "NOTION_DB is not a database id", global: true };
+export async function sendToNotion(env: Env, ns: NotionSettings, lead: Lead): Promise<SendResult> {
+  const dbId = ns.dbId;
+  if (!dbId) return { ok: false, reason: "the database id is not valid", global: true };
   const started = Date.now();
   let schema: Prop[] | undefined;
   let cached = false;
@@ -307,7 +327,7 @@ export async function sendToNotion(env: Env, lead: Lead): Promise<SendResult> {
     let wait = BACKOFF_MS[attempt] ?? 0;
     try {
       if (!schema) {
-        const s = await loadSchema(env, dbId, refreshed);
+        const s = await loadSchema(env, ns, dbId, refreshed);
         if (!s.schema) {
           const f = failure(s.failure!, "db ");
           last = f;
@@ -319,7 +339,7 @@ export async function sendToNotion(env: Env, lead: Lead): Promise<SendResult> {
         }
       }
       if (schema) {
-        const card = buildCard(env, lead, schema, dbId);
+        const card = buildCard(ns, lead, schema, dbId);
         // He may have just renamed or added a column: before a partial card, read his schema once more.
         if (card.problems.length && cached && !refreshed) {
           refreshed = true;
@@ -327,7 +347,7 @@ export async function sendToNotion(env: Env, lead: Lead): Promise<SendResult> {
           attempt--;
           continue;
         }
-        const r = await call(env, "POST", "/v1/pages", card.body);
+        const r = await call(env, ns.token, "POST", "/v1/pages", card.body);
         if (r.ok) {
           // His property names and types only, so the first real lead shows what was picked.
           console.log("notion", "card:", card.chosen);
@@ -358,8 +378,8 @@ export async function sendToNotion(env: Env, lead: Lead): Promise<SendResult> {
 }
 
 /** Sends one stored lead and writes the outcome onto it. */
-async function syncAndMark(env: Env, key: string, lead: Lead): Promise<SendResult> {
-  const r = await sendToNotion(env, lead);
+async function syncAndMark(env: Env, ns: NotionSettings, key: string, lead: Lead): Promise<SendResult> {
+  const r = await sendToNotion(env, ns, lead);
   const plain: Lead = { ...lead };
   delete plain.notion;
   delete plain.notionError;
@@ -377,10 +397,15 @@ async function syncAndMark(env: Env, key: string, lead: Lead): Promise<SendResul
   return r;
 }
 
-/** For ctx.waitUntil right after a lead is stored. Never throws. */
+/**
+ * For ctx.waitUntil right after a lead is stored. Reads the settings here, after the visitor
+ * has the answer, and does nothing at all (no call, no log) while Notion is off. Never throws.
+ */
 export async function syncNewLead(env: Env, key: string, lead: Lead): Promise<void> {
   try {
-    await syncAndMark(env, key, lead);
+    const ns = await notionSettings(env);
+    if (!ns) return;
+    await syncAndMark(env, ns, key, lead);
   } catch (e) {
     console.error("notion", "sync", e instanceof Error ? e.name : typeof e);
   }
@@ -406,7 +431,8 @@ function dayField(v: unknown, name: string): string {
  * way. Stops early on an error that every lead would hit (bad token, rate limit, outage).
  */
 export async function handleNotionResend(request: Request, env: Env): Promise<Response> {
-  if (!notionConfigured(env)) throw new HttpError(503, "notion not configured");
+  const ns = await notionSettings(env);
+  if (!ns) throw new HttpError(503, (await loadNotion(env)).configured ? "notion is switched off" : "notion not configured");
   const body = await readJson(request, 1024);
   for (const k of Object.keys(body)) if (!["id", "from", "to"].includes(k)) throw new HttpError(400, "unknown field");
 
@@ -455,7 +481,7 @@ export async function handleNotionResend(request: Request, env: Env): Promise<Re
       alreadySent++;
       continue;
     }
-    const r = await syncAndMark(env, t.key, fresh);
+    const r = await syncAndMark(env, ns, t.key, fresh);
     if (r.ok) {
       sent++;
       if (r.partial) partial++;

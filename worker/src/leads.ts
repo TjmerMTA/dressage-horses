@@ -1,7 +1,8 @@
 // Public lead intake and the admin's lead listing / CSV export.
 
 import { Env, HttpError, json, readJson, textResponse } from "./http";
-import { notionConfigured, syncNewLead } from "./notion";
+import { syncNewLead } from "./notion";
+import { notionSettings } from "./notion-settings";
 import { rateLimit } from "./security";
 
 export const LEAD_BODY_LIMIT = 4 * 1024;
@@ -143,8 +144,9 @@ export async function handleLead(request: Request, env: Env, ctx: ExecutionConte
     };
     const key = leadKey(lead);
     await putLead(env, key, lead);
-    // Stored first; Notion gets its copy after the visitor already has the answer.
-    if (notionConfigured(env)) ctx.waitUntil(syncNewLead(env, key, lead));
+    // Stored first; Notion gets its copy after the visitor already has the answer (and only
+    // while Notion is on: syncNewLead reads the settings and otherwise does nothing).
+    ctx.waitUntil(syncNewLead(env, key, lead));
   }
   return json({ ok: true });
 }
@@ -221,8 +223,8 @@ export async function findLeadKey(env: Env, id: string): Promise<string | null> 
 
 export async function handleLeads(request: Request, env: Env): Promise<Response> {
   const { leads, truncated } = await loadLeads(env, new URL(request.url));
-  // `notion` is present only once Notion is configured, so the panel can say nothing until then.
-  return json({ ok: true, count: leads.length, truncated, leads, ...(notionConfigured(env) ? { notion: true } : {}) });
+  // `notion` is present only while Notion is on, so the panel can say nothing until then.
+  return json({ ok: true, count: leads.length, truncated, leads, ...((await notionSettings(env)) ? { notion: true } : {}) });
 }
 
 /** Quotes a CSV cell and neutralises spreadsheet formulas (CSV injection). */
