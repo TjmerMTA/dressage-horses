@@ -294,8 +294,8 @@ pkill -f "wrangler dev --port $NT_PORT " 2>/dev/null
 
 echo "== Notion switched on: a card in his database"
 # The main Worker stops; this one opens the same stored data, so its three leads are
-# "leads that arrived before Notion was connected". The phase / comment property names and
-# the phase option are not set here: the defaults in wrangler.toml are what is tested.
+# "leads that arrived before Notion was connected". The stage / comment property names and
+# the stage option are not set here: the defaults in wrangler.toml are what is tested.
 pkill -f "wrangler dev --port $PORT " 2>/dev/null
 sleep 1
 NW="http://127.0.0.1:$NW_PORT"
@@ -328,7 +328,7 @@ NW_AUTH="Authorization: Bearer $(jget token)"
 check "leads list says Notion is on"       200 '"notion":true' -H "$NW_AUTH" "$NW/admin/leads"
 assert "older leads carry no mark yet"     bash -c "! grep -q '\"notion\":\"' '$TMP/body'"
 
-echo "== Notion: \"phase\" is a status, the title is not called Name"
+echo "== Notion: the stage \"Face\" is a status, the title is not called Name"
 nlead 51 "Full Lead" ",\"consent\":true,\"page\":\"$HORSE_URL\""
 assert "reply is exactly {ok:true}"        test "$(cat "$TMP/body")" = '{"ok":true}'
 assert "full lead reached Notion"          test "$(mark_of 'Full Lead')" = sent
@@ -339,9 +339,9 @@ assert "one card created"                  nc "Full Lead" 'cs.length === 1'
 assert "token and Notion-Version sent"     nc "Full Lead" "c.auth === 'Bearer $NOTION_TOKEN_DUMMY' && c.version === '2022-06-28'"
 assert "db id from the address, not ?v="   nc "Full Lead" "c.body.parent.database_id === '$NOTION_DB_ID'"
 assert "name in his title property"        nc "Full Lead" "p['Клієнт'].title[0].text.content === 'Full Lead'"
-assert "phase (status) set to Лід"         nc "Full Lead" "p['Phase'].status.name === 'Лід'"
+assert "stage Face (status) set to Lead"    nc "Full Lead" "p['Face'].status.name === 'Lead'"
 assert "all answers in comment on phase"   nc "Full Lead" "($TEXT)(p) === process.env.EXPECT"
-assert "exactly three properties"          nc "Full Lead" "Object.keys(p).sort().join('|') === ['Comment on phase', 'Phase', 'Клієнт'].sort().join('|')"
+assert "exactly three properties"          nc "Full Lead" "Object.keys(p).sort().join('|') === ['Comment on phase', 'Face', 'Клієнт'].sort().join('|')"
 assert "no page text on a complete card"   nc "Full Lead" '!c.body.children'
 nlead 52 "Min Lead"
 assert "lead without optional answers sent" test "$(mark_of 'Min Lead')" = sent
@@ -352,6 +352,7 @@ assert "no empty string anywhere"          nc "Min Lead" '!JSON.stringify(c.body
 assert "schema read once, then cached"     nc "" 'reads.length === 1'
 
 echo "== Notion: failures, retries and the mark"
+assert "the chosen properties are logged"  grep -qF 'card: title "Клієнт"; stage "Face" (status, configured name); comment "Comment on phase" (rich_text, configured name)' "$TMP/wrangler-nw.log"
 nlead 54 "Notion401 Lead"
 assert "401 → reply still {ok:true}"       test "$(cat "$TMP/body")" = '{"ok":true}'
 assert "401 → marked failed"               test "$(mark_of 'Notion401 Lead')" = failed
@@ -398,7 +399,7 @@ assert "a lead still on its way is skipped" test "$(jget pending)" = 1
 assert "sent ones are skipped"             test "$(jget alreadySent)" = 4
 leads_now
 assert "older leads now marked sent"       test "$(lget 'Anna First' notion)|$(lget 'Omar Second' notion)|$(lget '=HYPERLINK(1)' notion)" = "sent|sent|sent"
-assert "older lead's card is complete"     nc "Omar Second" "p['Phase'].status.name === 'Лід' && ($TEXT)(p).includes('Contact: +971 50 123 4567\nConsent: yes\nPage: https://dev.siteboosty.com/?utm_source=ig')"
+assert "older lead's card is complete"     nc "Omar Second" "p['Face'].status.name === 'Lead' && ($TEXT)(p).includes('Contact: +971 50 123 4567\nConsent: yes\nPage: https://dev.siteboosty.com/?utm_source=ig')"
 assert "the pending lead got its own send" test "$(mark_of 'Slow Pending')" = sent
 assert "...and only one card"              nc "Slow Pending" 'cs.length === 1'
 curl -s -o /dev/null -X POST "$NOTION/__mode?m=ok"   # Notion is healthy again
@@ -411,37 +412,49 @@ check "resend again: nothing to do"        200 '"sent":0' -H "$NW_AUTH" -H "$JSO
 assert "all 11 already sent"               test "$(jget alreadySent)" = 11
 assert "a sent lead is never sent twice"   nc "" "['Full Lead','Min Lead','Flaky Lead','Slow Lead','Anna First'].every(t => pages.filter(x => Object.values(x.body.properties).find(v => v.title).title[0].text.content === t).length === (t === 'Flaky Lead' ? 2 : 1))"
 
-echo "== Notion: \"phase\" is a select"
+echo "== Notion: the stage is a select; odd spacing and case in the names"
 curl -s -o /dev/null -X POST "$NOTION/__schema?s=select"
 nlead 60 "Select Lead"
 assert "sent after his schema changed"     test "$(mark_of 'Select Lead')" = sent
 assert "schema re-read after the 400"      nc "" 'reads.length === 2'
-assert "phase (select) set to Лід"         nc "Select Lead" "p['PHASE'].select.name === 'Лід' && !('Phase' in p)"
+assert "stage (select) set to his \"lead\"" nc "Select Lead" "p['FA CE'].select.name === 'lead' && !('Face' in p)"
 assert "two-language title property used" nc "Select Lead" "p['Клієнт / Client'].title[0].text.content === 'Select Lead'"
-assert "answers in comment on phase"       nc "Select Lead" "($TEXT)(p).startsWith('Region: Europe\nBudget: €60,000 – 100,000\nBuying: Online purchase\nContact: ')"
+assert "comment found ignoring spaces"     nc "Select Lead" "p['CommentOnPhase'].rich_text[0].text.content.startsWith('Region: Europe\nBudget: €60,000 – 100,000\nBuying: Online purchase\nContact: ')"
+
+echo "== Notion: the configured names are not there → the fallbacks"
+curl -s -o /dev/null -X POST "$NOTION/__schema?s=fbstatus"
+nlead 61 "Fallback Status"
+assert "sent through the fallbacks"        test "$(mark_of 'Fallback Status')" = sent
+assert "first status property is the stage" nc "Fallback Status" "p['Фаза'].status.name === 'Lead'"
+assert "text named like comment gets text" nc "Fallback Status" "p['Comments (phase)'].rich_text[0].text.content.startsWith('Region: ') && !('Notes' in p)"
+assert "the choice is logged"              grep -qF 'card: title "Клієнт"; stage "Фаза" (status, first status property); comment "Comments (phase)" (rich_text, text property named like comment)' "$TMP/wrangler-nw.log"
+curl -s -o /dev/null -X POST "$NOTION/__schema?s=fbselect"
+nlead 62 "Fallback Select"
+assert "a select called Статус is the stage" nc "Fallback Select" "p['Статус'].select.name === 'Lead' && !('Region' in p)"
+assert "that choice is logged too"         grep -qF 'stage "Статус" (select, select with a stage-like name)' "$TMP/wrangler-nw.log"
 
 echo "== Notion: a property is missing → a partial card"
 curl -s -o /dev/null -X POST "$NOTION/__schema?s=nocomment"
-nlead 61 "No Comment Lead" ",\"page\":\"$HORSE_URL\""
+nlead 63 "No Comment Lead" ",\"page\":\"$HORSE_URL\""
 assert "card created, marked partial"      test "$(mark_of 'No Comment Lead')" = partial
-assert "reason: no comment on phase"       test "$(lget 'No Comment Lead' notionError)" = 'comment: no column "comment on phase"'
-assert "phase still set"                   nc "No Comment Lead" "p['Phase'].status.name === 'Лід'"
-assert "nothing guessed into Notes"        nc "No Comment Lead" "Object.keys(p).sort().join('|') === ['Phase', 'Клієнт'].sort().join('|')"
+assert "reason: no comment on phase"       test "$(lget 'No Comment Lead' notionError)" = 'comment: no text property "comment on phase"'
+assert "stage still set"                   nc "No Comment Lead" "p['Face'].status.name === 'Lead'"
+assert "nothing guessed into Notes"        nc "No Comment Lead" "Object.keys(p).sort().join('|') === ['Face', 'Клієнт'].sort().join('|')"
 assert "every answer in the page text"     nc "No Comment Lead" "lines.join('|') === ['Region: Europe', 'Budget: €60,000 – 100,000', 'Buying: Online purchase', 'Horse: Donatello B', 'Contact: +32 470 99 88 77', 'Page: $HORSE_URL', 'Received: $(utc "$(lget 'No Comment Lead' createdAt)")'].join('|')"
-curl -s -o /dev/null -X POST "$NOTION/__schema?s=nophase"
-nlead 62 "No Phase Lead"
-assert "no phase → marked partial"         test "$(mark_of 'No Phase Lead')" = partial
-assert "reason: no phase"                  test "$(lget 'No Phase Lead' notionError)" = 'phase: no column "phase"'
-assert "no other column taken as phase"    nc "No Phase Lead" "!('Stage' in p) && p['Клієнт'].title[0].text.content === 'No Phase Lead'"
-assert "answers in the page text"          nc "No Phase Lead" "lines[0] === 'Region: Europe' && lines.some(l => l.startsWith('Received: '))"
+curl -s -o /dev/null -X POST "$NOTION/__schema?s=nostage"
+nlead 64 "No Stage Lead"
+assert "no stage → marked partial"         test "$(mark_of 'No Stage Lead')" = partial
+assert "reason: no stage"                  test "$(lget 'No Stage Lead' notionError)" = 'stage: no status or select property "Face"'
+assert "an unrelated select is not taken"  nc "No Stage Lead" "!('Budget' in p) && p['Клієнт'].title[0].text.content === 'No Stage Lead'"
+assert "answers in the page text"          nc "No Stage Lead" "lines[0] === 'Region: Europe' && lines.some(l => l.startsWith('Received: '))"
 curl -s -o /dev/null -X POST "$NOTION/__schema?s=nooption"
-nlead 63 "No Option Lead"
-assert "no Лід option → marked partial"    test "$(mark_of 'No Option Lead')" = partial
-assert "reason: no such option"            test "$(lget 'No Option Lead' notionError)" = 'phase: "Phase" has no option "Лід"'
-assert "no option is invented"             nc "No Option Lead" "!('Phase' in p) && lines.length > 0"
+nlead 65 "No Option Lead"
+assert "no Lead option → marked partial"   test "$(mark_of 'No Option Lead')" = partial
+assert "reason names his options"          test "$(lget 'No Option Lead' notionError)" = 'stage: "Face" has no option "Lead"; it has: Лід, Підбір, Угода'
+assert "no option is invented"             nc "No Option Lead" "!('Face' in p) && lines.length > 0 && p['Comment on phase'].rich_text.length > 0"
 export PAGES_BEFORE="$(curl -s "$NOTION/__calls" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).filter(x=>x.path==="/v1/pages").length))')"
 check "resend skips partial cards"         200 '"sent":0' -H "$NW_AUTH" -H "$JSON" -d '{}' "$NW/admin/notion/resend"
-assert "partial cards count as delivered"  test "$(jget alreadySent)" = 15
+assert "partial cards count as delivered"  test "$(jget alreadySent)" = 17
 assert "no new card for a partial lead"    nc "" 'pages.length === Number(process.env.PAGES_BEFORE)'
 
 echo "== Notion: a long set of answers"
@@ -455,7 +468,7 @@ const lead={name:"Long Answers",region:fill("Europe and the Gulf ",100),budget:f
   format:fill("I will come to try the horse in person ",100),contact:"a".repeat(180)+"@example.com",consent:true,page,ts:Number(ts)};
 fs.writeFileSync(d+"/long.json",JSON.stringify(lead));' "$TMP" "$TS"
 export LONGJ="$(cat "$TMP/long.json")"
-check "lead: Long Answers"                 200 '{"ok":true}' -H "$(ip 64)" -H "$JSON" --data-binary "@$TMP/long.json" "$NW/lead"
+check "lead: Long Answers"                 200 '{"ok":true}' -H "$(ip 66)" -H "$JSON" --data-binary "@$TMP/long.json" "$NW/lead"
 assert "long lead sent"                    test "$(mark_of 'Long Answers')" = sent
 assert "every long answer whole in the text" nc "Long Answers" "(() => { const t = ($TEXT)(p), l = JSON.parse(process.env.LONGJ); return t.split('\n').length === 8 && [l.region, l.budget, l.format, l.contact, l.page].every(v => t.includes(v)); })()"
 assert "each text piece within Notion's 2000" nc "Long Answers" "p['Comment on phase'].rich_text.every(t => t.text.content.length <= 2000) && ($TEXT)(p).length > 1000"

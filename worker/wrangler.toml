@@ -19,10 +19,10 @@ GITHUB_BRANCH = "main"
 # (32 characters from the database page's address; the whole address works too). Not a secret.
 # Empty = Notion is switched off and the Worker behaves exactly as without it. See README.md → "Notion".
 NOTION_DB = ""
-# The three things a new card sets (besides the name in his title property). Spelled as in
-# Notion; upper or lower case does not matter. Rename here if he renames them there.
-NOTION_PHASE_PROP = "phase"              # the property his board is grouped by
-NOTION_PHASE_VALUE = "Лід"               # the board column a new card lands in
+# What a new card sets besides the name in his title property. Upper/lower case and spaces do
+# not count. Rename here if he renames them in Notion. See README.md → "Notion".
+NOTION_STAGE_PROP = "Face"               # the status his board is grouped by
+NOTION_STAGE_VALUE = "Lead"              # the board column a new card lands in (must exist)
 NOTION_COMMENT_PROP = "comment on phase" # gets every answer as plain text
 
 # One KV namespace holds leads, sessions and rate-limit counters (distinct key prefixes).

@@ -3,8 +3,8 @@
 //
 //   node test/mock-notion.mjs <port> <expected-token> <expected-database-id>
 //
-//   GET  /v1/databases/<id>   the schema: "status" (default), "select", "nocomment", "nophase"
-//                             or "nooption", see SCHEMAS below
+//   GET  /v1/databases/<id>   the schema: "status" (default), "select", "fbstatus", "fbselect",
+//                             "nocomment", "nostage" or "nooption", see SCHEMAS below
 //   POST /v1/pages            checked against that schema the way Notion does: an unknown
 //                             property, a value of the wrong type, an option that does not
 //                             exist, text over 2000 characters or an empty string → 400
@@ -27,38 +27,52 @@ let mode = "normal";
 
 const opts = (...names) => ({ options: names.map((name) => ({ id: crypto.randomUUID(), name, color: "default" })) });
 const SCHEMAS = {
-  // Like his board: a title not called "Name", "phase" as a status (other case), and
-  // columns of his that a card must never touch.
+  // Like his board: a title not called "Name", "Face" as a status, and columns of his that a
+  // card must never touch (one of them another select).
   status: {
     "Клієнт": { type: "title", title: {} },
-    "Phase": { type: "status", status: { ...opts("Лід", "Підбір", "Угода"), groups: [] } },
-    "Comment on phase": { type: "rich_text", rich_text: {} },
     "Budget": { type: "select", select: opts("€30 000 – 60 000") },
+    "Face": { type: "status", status: { ...opts("Lead", "Selection", "Deal"), groups: [] } },
+    "Comment on phase": { type: "rich_text", rich_text: {} },
     "Phone": { type: "phone_number", phone_number: {} },
     "Created": { type: "created_time", created_time: {} },
   },
-  // "phase" as a select, and a two-language title.
+  // The stage as a select, odd spacing and case in both names, a two-language title.
   select: {
     "Клієнт / Client": { type: "title", title: {} },
-    "PHASE": { type: "select", select: opts("Угода", "Лід") },
+    "FA CE": { type: "select", select: opts("Deal", "lead") },
+    "CommentOnPhase": { type: "rich_text", rich_text: {} },
+  },
+  // No "Face", but a status under another name, and a comment named differently.
+  fbstatus: {
+    "Клієнт": { type: "title", title: {} },
+    "Notes": { type: "rich_text", rich_text: {} },
+    "Фаза": { type: "status", status: { ...opts("Lead", "Deal"), groups: [] } },
+    "Comments (phase)": { type: "rich_text", rich_text: {} },
+  },
+  // No status at all: the stage is a select called "Статус"; an earlier select must not be taken.
+  fbselect: {
+    "Клієнт": { type: "title", title: {} },
+    "Region": { type: "select", select: opts("Europe", "Lead") },
+    "Статус": { type: "select", select: opts("Lead", "Deal") },
     "comment on phase": { type: "rich_text", rich_text: {} },
   },
-  // No "comment on phase".
+  // No comment property (and a text property that must not be taken for it).
   nocomment: {
     "Клієнт": { type: "title", title: {} },
-    "Phase": { type: "status", status: { ...opts("Лід", "Угода"), groups: [] } },
+    "Face": { type: "status", status: { ...opts("Lead", "Deal"), groups: [] } },
     "Notes": { type: "rich_text", rich_text: {} },
   },
-  // No "phase".
-  nophase: {
+  // No stage: no status, and the only select has an unrelated name.
+  nostage: {
     "Клієнт": { type: "title", title: {} },
-    "Stage": { type: "status", status: { ...opts("Лід"), groups: [] } },
+    "Budget": { type: "select", select: opts("Lead") },
     "Comment on phase": { type: "rich_text", rich_text: {} },
   },
-  // "phase" exists, but without a "Лід" option.
+  // "Face" exists, but without a "Lead" option.
   nooption: {
     "Клієнт": { type: "title", title: {} },
-    "Phase": { type: "status", status: { ...opts("Lead", "Deal"), groups: [] } },
+    "Face": { type: "status", status: { ...opts("Лід", "Підбір", "Угода"), groups: [] } },
     "Comment on phase": { type: "rich_text", rich_text: {} },
   },
 };

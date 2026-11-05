@@ -24,7 +24,7 @@ function reason(code) {
 export function notionMark(l) {
   if (l.notion === "sent") return h("span", { class: "adm-sub" }, "In Notion");
   if (l.notion === "partial") {
-    return h("span", { class: "adm-sub", title: `Notion: ${l.notionError || "a property was not found"}. The card is there, with every answer in its page text${/(^|; )phase:/.test(l.notionError || "") ? ", but not in the right column: move it by hand" : ""}. Fix the property's name in Notion or in the Worker's settings, and the next leads are complete.` }, "In Notion, incomplete");
+    return h("span", { class: "adm-sub", title: `Notion: ${l.notionError || "a property was not found"}. The card is there, with every answer in its page text${/(^|; )stage:/.test(l.notionError || "") ? ", but not in the right column: move it by hand" : ""}. Fix the property's name in Notion or in the Worker's settings, and the next leads are complete.` }, "In Notion, incomplete");
   }
   if (!l.notion && Date.now() - Date.parse(l.createdAt) < IN_FLIGHT_MS) return h("span", { class: "adm-sub" }, "Sending to Notion…");
   const why = l.notion === "failed" ? reason(l.notionError) : "This lead arrived before Notion was connected.";

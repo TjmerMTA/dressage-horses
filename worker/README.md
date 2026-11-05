@@ -58,8 +58,8 @@ Changing the password hash does not end live sessions; they expire within 12 hou
 | `GITHUB_BRANCH` | `main` |
 
 | `NOTION_DB` | Empty until Notion is connected. Then the id of his database (or its whole link). See "Notion" below. |
-| `NOTION_PHASE_PROP` | `phase`: his property the board is grouped by. |
-| `NOTION_PHASE_VALUE` | `Лід`: the board column a new card lands in. |
+| `NOTION_STAGE_PROP` | `Face`: his status property the board is grouped by. |
+| `NOTION_STAGE_VALUE` | `Lead`: the board column (status option) a new card lands in. |
 | `NOTION_COMMENT_PROP` | `comment on phase`: his text property that gets every answer. |
 
 `GITHUB_API_BASE` and `NOTION_API_BASE` exist only so the tests can point at mocks. Leave them unset in production.
@@ -67,19 +67,39 @@ Changing the password hash does not end live sessions; they expire within 12 hou
 ## Notion: every quiz lead as a new card in the client's database
 
 Each lead the quiz sends becomes a new card in the client's **existing** Notion database
-"Підбір для клієнтів / Clients Selection", in the board column **Лід**. A card sets three
-of his properties and nothing else:
+"Підбір для клієнтів / Clients Selection", in the board column **Lead**. His columns are
+the options of a status property called **Face**: a card moves between columns when Face
+changes. A card sets three of his properties and nothing else:
 
 | His property | What goes in | Setting (`wrangler.toml`) |
 |---|---|---|
 | the title property (whatever it is called) | the visitor's name | none |
-| **phase**: the one the board is grouped by; a Select or a Status | the option **Лід**, so the card lands in that column | `NOTION_PHASE_PROP = "phase"`, `NOTION_PHASE_VALUE = "Лід"` |
+| **Face**: the status the board is grouped by (a Select works too) | the option **Lead**, so the card lands in that column | `NOTION_STAGE_PROP = "Face"`, `NOTION_STAGE_VALUE = "Lead"` |
 | **comment on phase**: a Text property | every answer, as plain text | `NOTION_COMMENT_PROP = "comment on phase"` |
 
-Names are matched ignoring upper/lower case. If he renames the property or the board
-column in Notion, change the setting to the new name and run `npx wrangler deploy`. No
-code changes. The option must already exist in "phase": the Worker never adds a column to
-his board.
+If he renames the property or the column in Notion, change the setting to the new name and
+run `npx wrangler deploy`. No code changes.
+
+**How the Worker finds them.** The names he has given us have varied, so the Worker is
+forgiving. Upper/lower case and spaces never count (`Face`, `face`, `FA CE` are the same).
+
+- *The stage:* (1) the property named in `NOTION_STAGE_PROP`, if it is a Status or a Select;
+  else (2) his first Status property, whatever it is called; else (3) the first Select
+  called face, phase, фаза, status or статус.
+- *The comment:* (1) the Text property named in `NOTION_COMMENT_PROP`; else (2) the first
+  Text property whose name contains "comment".
+
+Every card writes one log line naming what was chosen and how, for example
+`notion card: title "Клієнт"; stage "Face" (status, configured name); comment "Comment on
+phase" (rich_text, configured name)`. It holds property names and types only, never the
+lead. After the first real lead, check it in Cloudflare (Workers → dressage-horses-api →
+Logs). If it says "first status property" or "named like comment", the guess was used: put
+the real names into `wrangler.toml` so it no longer depends on guessing.
+
+**The option is never invented.** If "Face" has no option "Lead", the card is created without
+a stage, and the error names the options his database actually has (e.g. `stage: "Face" has
+no option "Lead"; it has: Лід, Підбір, Угода`). Copy the right one into `NOTION_STAGE_VALUE`
+and deploy.
 
 The text in "comment on phase" reads like this (one answer per line, in the quiz's order,
 then the contact, the page and the time; "Horse" only when the lead came from a horse,
@@ -99,13 +119,13 @@ Received: 2026-11-05 08:23 UTC
 - **The lead is safe first.** It is stored in KV and the visitor gets the answer; only then
   is the card created, in the background, so the visitor never waits for Notion. KV stays the
   source of truth; Notion is a copy.
-- **If "phase" or "comment on phase" is not found** (renamed, deleted, the wrong type, or
-  "phase" has no option "Лід"), nothing is guessed and nothing is dropped. The card is
-  still created with the name and with whatever of the two *was* found, and **every answer
-  is written into the card's page text**. The lead is marked **"In Notion, incomplete"** in
-  the admin; hovering the mark says which property was missing. If it was "phase", move that
-  card into Лід by hand. Once the name is fixed, the next leads land correctly. An incomplete card is not
-  sent again (that would make a second card).
+- **If the stage or the comment cannot be found** by the rules above (or the option "Lead"
+  is missing), nothing more is guessed and nothing is dropped. The card is still created
+  with the name and whichever of the two *was* found, and **every answer is written into the
+  card's page text**. The lead is marked **"In Notion, incomplete"** in the admin; hovering
+  the mark says what was missing. If it was the stage, move that card into Lead by hand.
+  Once the setting is fixed, the next leads land correctly. An incomplete card is not sent
+  again (that would make a second card).
 - **If Notion fails** (down, busy, wrong key), the Worker tries again twice, then marks the
   lead **"Not in Notion yet"**. **Send N to Notion** on the Leads screen sends every lead
   that has no card yet. That is also how the leads that arrived before Notion was connected
@@ -135,10 +155,11 @@ Received: 2026-11-05 08:23 UTC
    the whole link: the database id is the 32 characters **before** `?v=`, and the Worker
    also accepts the whole link. (The part after `?v=` is the view, not the database.)
 4. **Check the three names.** In the database, look at the property the board is grouped
-   by (board view → **•••** → **Group** shows **Group by: …**), the name of its first group,
-   and the text property for the answers. If they are not exactly `phase`, `Лід` and
-   `comment on phase` (upper or lower case does not matter), send the developer the real
-   names. "comment on phase" must be a **Text** property.
+   by (board view → **•••** → **Group** shows **Group by: …**), the exact name of the column
+   new leads belong in, and the text property for the answers. Copy them from Notion rather
+   than typing them. If they are not `Face`, `Lead` and `comment on phase` (case and spaces
+   do not matter), send the developer the real names. "comment on phase" must be a **Text**
+   property.
 5. **The developer stores the key** as a Worker secret, from this `worker/` folder:
 
    ```sh
@@ -157,8 +178,8 @@ Received: 2026-11-05 08:23 UTC
 
    ```toml
    NOTION_DB = "<the 32 characters from step 3, or the whole link>"
-   NOTION_PHASE_PROP = "phase"
-   NOTION_PHASE_VALUE = "Лід"
+   NOTION_STAGE_PROP = "Face"
+   NOTION_STAGE_VALUE = "Lead"
    NOTION_COMMENT_PROP = "comment on phase"
    ```
 
@@ -166,7 +187,7 @@ Received: 2026-11-05 08:23 UTC
    npx wrangler deploy
    ```
 7. **Check it.** Fill in the quiz on the site once. Within a few seconds a card with that
-   name appears in the **Лід** column, with the answers in "comment on phase". In the
+   name appears in the **Lead** column, with the answers in "comment on phase". In the
    admin, the lead says **In Notion**. If it says **In Notion, incomplete**, hover it: it
    names the property that was not found. Fix the name (step 4 and 6).
 8. **Bring in the earlier leads.** Leads screen → **Send N to Notion**. (Choose dates first
@@ -186,7 +207,7 @@ gets a 403. Admin calls send `Authorization: Bearer <token>`.
 | `POST /lead` | — | JSON, max 4 KB, 5 per IP per 10 min → 429. Reply is always exactly `{"ok":true}`. |
 | `POST /admin/login` | — | `{"password"}` → `{"ok":true,"token","expiresIn":43200}`. 5 attempts per IP per 15 min (right or wrong) → 429. |
 | `POST /admin/logout` | session | Ends the session. |
-| `GET /admin/leads?from=YYYY-MM-DD&to=YYYY-MM-DD` | session | `{"ok","count","truncated","leads":[…]}`, newest first. Both dates optional, inclusive, UTC. Once Notion is configured the reply also has `"notion":true`, and each lead that was tried has `notion` (`"sent"`, `"partial"` = a card without phase or comment, `"failed"` = no card), `notionAt`, and for the last two a short `notionError` such as `"401 unauthorized"` or `phase: no column "phase"`. |
+| `GET /admin/leads?from=YYYY-MM-DD&to=YYYY-MM-DD` | session | `{"ok","count","truncated","leads":[…]}`, newest first. Both dates optional, inclusive, UTC. Once Notion is configured the reply also has `"notion":true`, and each lead that was tried has `notion` (`"sent"`, `"partial"` = a card without its stage or comment, `"failed"` = no card), `notionAt`, and for the last two a short `notionError` such as `"401 unauthorized"` or `stage: no status or select property "Face"`. |
 | `GET /admin/leads.csv?from=&to=` | session | UTF-8 CSV (with BOM, for Excel). Cells that start like a formula are prefixed with `'`. |
 | `GET /admin/content?path=` | session | File: `{"type":"file","path","sha","size","encoding":"utf-8"\|"base64","content"}`. Directory: `{"type":"dir","entries":[{name,path,type,sha,size}]}`. |
 | `PUT /admin/content` | session | `{"path","content","sha"?,"message"?}`. Max 512 KB of text. `sha` is the one from GET (omit it to create a new file). A stale `sha` → 409. `.json` must parse. → `{"ok","path","sha","commit"}` |
@@ -247,8 +268,9 @@ normal `{"ok":true}` but is not stored, so bots learn nothing.
 
 The script starts its own `wrangler dev` (throw-away KV state in a temp folder), a mock
 GitHub (`test/mock-github.mjs`) and a mock Notion (`test/mock-notion.mjs`, with databases shaped like
-his: a title not called "Name", "phase" as a Status and as a Select, and ones where "phase",
-its "Лід" option or "comment on phase" is missing), and later a second Worker with Notion
+his: a title not called "Name", the stage as a Status and as a Select, odd spacing and case,
+the fallbacks when the configured names are absent, and ones where the stage, its "Lead"
+option or "comment on phase" is missing), and later a second Worker with Notion
 switched on. It creates a random one-off
 admin password, then calls every endpoint, including the failure cases: wrong password, no or
 invalid session, oversized bodies, forbidden and traversal paths, fake images and both rate
@@ -274,7 +296,8 @@ exit code is the number of failed checks.
   them.
 - The Worker logs only an error class name and a route. It never logs bodies, headers or tokens.
   For Notion it logs a status and Notion's error code (`notion failed: 429 rate_limited`) or the
-  name of a missing property, never Notion's message text, which could quote the lead.
+  name of a missing property, and one line per card naming which of his properties it used;
+  never Notion's message text, which could quote the lead.
 - **With Notion on, a lead costs 3 KV writes** (counter, lead, the Notion mark), plus one write
   at most every 5 minutes for his property list (one per lead while a property is missing).
   Still far inside 1,000 a day.

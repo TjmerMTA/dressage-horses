@@ -13,10 +13,10 @@ export interface Env {
   NOTION_DB?: string;
   /** Secret: the Notion internal integration token. Empty → Notion is off. */
   NOTION_TOKEN?: string;
-  /** Plain vars: the property his board is grouped by ("phase"), the option a new card gets ("Лід"),
+  /** Plain vars: the status his board is grouped by ("Face"), the option a new card gets ("Lead"),
    *  and the text property that receives every answer ("comment on phase"). Empty → those defaults. */
-  NOTION_PHASE_PROP?: string;
-  NOTION_PHASE_VALUE?: string;
+  NOTION_STAGE_PROP?: string;
+  NOTION_STAGE_VALUE?: string;
   NOTION_COMMENT_PROP?: string;
   /** Only for local tests (points at a mock). Unset in production → api.notion.com. */
   NOTION_API_BASE?: string;

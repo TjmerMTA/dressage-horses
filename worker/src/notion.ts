@@ -3,13 +3,14 @@
 // ctx.waitUntil) is it sent to Notion. A Notion failure is recorded on the stored lead.
 //
 // A card sets three properties of his and nothing else:
-//   - his title property             ← the visitor's name
-//   - NOTION_PHASE_PROP ("phase")    ← NOTION_PHASE_VALUE ("Лід"): the board's column
-//   - NOTION_COMMENT_PROP ("comment on phase") ← every answer, as plain text
-// Names are matched case-insensitively. His schema is read (and cached in KV for 5 minutes)
-// only to find those three and to learn whether "phase" is a select or a status.
-// If "phase" or "comment on phase" cannot be used, the card is still created, the answers go
-// into the page's text, and the lead is marked "partial" so the admin shows it.
+//   - his title property                          ← the visitor's name
+//   - the stage, NOTION_STAGE_PROP ("Face")       ← NOTION_STAGE_VALUE ("Lead"): the board column
+//   - the comment, NOTION_COMMENT_PROP ("comment on phase") ← every answer, as plain text
+// His schema is read (and cached in KV for 5 minutes) only to find those and to learn whether
+// the stage is a status or a select. The names are found forgivingly (see findStage /
+// findComment), and the property chosen is logged by name and type. If the stage or the
+// comment cannot be used, the card is still created, the answers go into the page's text,
+// and the lead is marked "partial" so the admin shows it. An option is never invented.
 //
 // Not configured (NOTION_TOKEN or NOTION_DB empty) means: no call, no log, no trace.
 // Nothing about the lead and nothing about the token is ever logged.
@@ -31,9 +32,11 @@ export const IN_FLIGHT_MS = 60_000;
 /** Leads sent per resend call: each can take several calls, and a free-plan Worker gets 50. */
 export const RESEND_BATCH = 10;
 
-export const DEFAULT_PHASE_PROP = "phase";
-export const DEFAULT_PHASE_VALUE = "Лід";
+export const DEFAULT_STAGE_PROP = "Face";
+export const DEFAULT_STAGE_VALUE = "Lead";
 export const DEFAULT_COMMENT_PROP = "comment on phase";
+/** Select properties that may be the stage when no name matches and there is no status property. */
+const STAGE_SELECT_NAMES = ["face", "phase", "фаза", "status", "статус"];
 
 export function notionConfigured(env: Env): boolean {
   return Boolean((env.NOTION_TOKEN || "").trim() && (env.NOTION_DB || "").trim());
@@ -124,53 +127,102 @@ function parseSchema(body: unknown): Prop[] | null {
 }
 
 const norm = (s: string) => s.normalize("NFC").trim().replace(/\s+/g, " ").toLowerCase();
+/** For matching names: case and spaces do not count ("Comment on phase" = "commentonphase"). */
+const key = (s: string) => s.normalize("NFC").replace(/\s+/g, "").toLowerCase();
 const setting = (v: string | undefined, fallback: string) => (v || "").trim() || fallback;
+
+interface Chosen {
+  prop?: Prop;
+  /** How it was found: "configured name", "first status property", … (for the log). */
+  how?: string;
+}
+
+/**
+ * The stage property: the configured name (any case, spaces ignored) if it is a status or a
+ * select; else the first status property; else the first select called face, phase, фаза,
+ * status or статус.
+ */
+export function findStage(schema: Prop[], name: string): Chosen {
+  const byName = schema.find((p) => key(p.name) === key(name) && (p.type === "status" || p.type === "select"));
+  if (byName) return { prop: byName, how: "configured name" };
+  const status = schema.find((p) => p.type === "status");
+  if (status) return { prop: status, how: "first status property" };
+  const select = schema.find((p) => p.type === "select" && STAGE_SELECT_NAMES.includes(norm(p.name)));
+  if (select) return { prop: select, how: "select with a stage-like name" };
+  return {};
+}
+
+/** The comment property: the configured name if it is text; else a text property whose name contains "comment". */
+export function findComment(schema: Prop[], name: string): Chosen {
+  const byName = schema.find((p) => key(p.name) === key(name) && p.type === "rich_text");
+  if (byName) return { prop: byName, how: "configured name" };
+  const like = schema.find((p) => p.type === "rich_text" && norm(p.name).includes("comment"));
+  if (like) return { prop: like, how: "text property named like comment" };
+  return {};
+}
+
+const shortList = (xs: string[]) => {
+  const shown = xs.slice(0, 8).map((x) => (x.length > 30 ? `${x.slice(0, 29)}…` : x));
+  return `${shown.join(", ")}${xs.length > shown.length ? ", …" : ""}` || "none";
+};
 
 export interface Card {
   body: Record<string, unknown>;
-  /** Why "phase" or "comment on phase" could not be used; empty when the card is complete. */
+  /**
+   * Why the stage or the comment could not be used; empty when the card is complete. Each
+   * reason starts with "stage:" or "comment:", so the admin can tell which one it was.
+   */
   problems: string[];
+  /** Which of his properties were chosen, by name and type only: safe to log. */
+  chosen: string;
 }
 
 /** The page to create for this lead in a database with this schema. */
 export function buildCard(env: Env, lead: Lead, schema: Prop[], dbId: string): Card {
-  const phaseName = setting(env.NOTION_PHASE_PROP, DEFAULT_PHASE_PROP);
-  const phaseValue = setting(env.NOTION_PHASE_VALUE, DEFAULT_PHASE_VALUE);
+  const stageName = setting(env.NOTION_STAGE_PROP, DEFAULT_STAGE_PROP);
+  const stageValue = setting(env.NOTION_STAGE_VALUE, DEFAULT_STAGE_VALUE);
   const commentName = setting(env.NOTION_COMMENT_PROP, DEFAULT_COMMENT_PROP);
   const title = schema.find((p) => p.type === "title")!;
   const properties: Record<string, unknown> = { [title.name]: { title: richText(lead.name) } };
   const problems: string[] = [];
+  const chosen: string[] = [`title "${title.name}"`];
 
-  const phase = schema.find((p) => p.type !== "title" && norm(p.name) === norm(phaseName));
-  // Each reason starts with "phase:" or "comment:", so the admin can tell which one it was.
-  if (!phase) problems.push(`phase: no column "${phaseName}"`);
-  else if (phase.type !== "status" && phase.type !== "select") problems.push(`phase: "${phase.name}" is ${phase.type}, not select or status`);
-  else {
+  const stage = findStage(schema, stageName);
+  if (!stage.prop) {
+    problems.push(`stage: no status or select property "${stageName}"`);
+    chosen.push("stage none");
+  } else {
+    const st = stage.prop;
+    chosen.push(`stage "${st.name}" (${st.type}, ${stage.how})`);
     // An option that does not exist is never created: it would add a column to his board.
-    const option = (phase.options || []).find((o) => norm(o) === norm(phaseValue));
-    if (!option) problems.push(`phase: "${phase.name}" has no option "${phaseValue}"`);
-    else properties[phase.name] = phase.type === "status" ? { status: { name: option } } : { select: { name: option } };
+    const option = (st.options || []).find((o) => key(o) === key(stageValue));
+    if (!option) problems.push(`stage: "${st.name}" has no option "${stageValue}"; it has: ${shortList(st.options || [])}`);
+    else properties[st.name] = st.type === "status" ? { status: { name: option } } : { select: { name: option } };
   }
 
   const lines = leadLines(lead);
-  const comment = schema.find((p) => p.type !== "title" && norm(p.name) === norm(commentName));
-  if (!comment) problems.push(`comment: no column "${commentName}"`);
-  else if (comment.type !== "rich_text") problems.push(`comment: "${comment.name}" is ${comment.type}, not text`);
-  else properties[comment.name] = { rich_text: richText(lines.join("\n")) };
+  const comment = findComment(schema, commentName);
+  if (!comment.prop) {
+    problems.push(`comment: no text property "${commentName}"`);
+    chosen.push("comment none");
+  } else {
+    chosen.push(`comment "${comment.prop.name}" (${comment.prop.type}, ${comment.how})`);
+    properties[comment.prop.name] = { rich_text: richText(lines.join("\n")) };
+  }
 
   const body: Record<string, unknown> = { parent: { database_id: dbId }, properties };
   // Whatever could not go where it belongs is written into the page, so nothing is lost.
   if (problems.length) {
     body["children"] = lines.map((l) => ({ object: "block", type: "paragraph", paragraph: { rich_text: richText(l) } }));
   }
-  return { body, problems };
+  return { body, problems, chosen: chosen.join("; ") };
 }
 
 // ---- talking to Notion -----------------------------------------------------------------------
 
 export interface SendResult {
   ok: boolean;
-  /** The card exists but "phase" or "comment on phase" could not be used. */
+  /** The card exists but the stage or the comment could not be used. */
   partial?: string;
   /** Short and safe to store: "401 unauthorized", "db 404 object_not_found", "timeout". Never Notion's message text. */
   reason?: string;
@@ -276,7 +328,11 @@ export async function sendToNotion(env: Env, lead: Lead): Promise<SendResult> {
           continue;
         }
         const r = await call(env, "POST", "/v1/pages", card.body);
-        if (r.ok) return card.problems.length ? { ok: true, partial: card.problems.join("; ") } : { ok: true };
+        if (r.ok) {
+          // His property names and types only, so the first real lead shows what was picked.
+          console.log("notion", "card:", card.chosen);
+          return card.problems.length ? { ok: true, partial: card.problems.join("; ") } : { ok: true };
+        }
         // A column we cached may have been renamed or deleted since: read the schema again, once.
         if (r.status === 400 && cached && !refreshed) {
           refreshed = true;
@@ -312,7 +368,7 @@ async function syncAndMark(env: Env, key: string, lead: Lead): Promise<SendResul
   const marked: Lead = r.ok && !r.partial
     ? { ...plain, notion: "sent", notionAt: at }
     : r.ok
-      ? { ...plain, notion: "partial", notionError: r.partial!.slice(0, 120), notionAt: at }
+      ? { ...plain, notion: "partial", notionError: r.partial!.slice(0, 400), notionAt: at }
       : { ...plain, notion: "failed", notionError: (r.reason || "failed").slice(0, 60), notionAt: at };
   await putLead(env, key, marked);
   // A status and Notion's error code, or the names of his columns: never anything about the lead.
