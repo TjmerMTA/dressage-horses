@@ -10,6 +10,7 @@ export default defineConfig({
   build: {
     format: 'directory',
   },
-  // The admin panel is not for search engines (robots.txt disallows it as well).
-  integrations: [sitemap({ filter: (page) => !page.includes('/admin/') })],
+  // The admin panel is not for search engines (robots.txt disallows it as well), and
+  // /sketch/ pages are decisions for the client, not part of the site (noindex as well).
+  integrations: [sitemap({ filter: (page) => !page.includes('/admin/') && !page.includes('/sketch/') })],
 });
