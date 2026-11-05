@@ -424,20 +424,20 @@ echo "== Notion: a property is missing → a partial card"
 curl -s -o /dev/null -X POST "$NOTION/__schema?s=nocomment"
 nlead 61 "No Comment Lead" ",\"page\":\"$HORSE_URL\""
 assert "card created, marked partial"      test "$(mark_of 'No Comment Lead')" = partial
-assert "reason: no comment on phase"       test "$(lget 'No Comment Lead' notionError)" = 'no column "comment on phase"'
+assert "reason: no comment on phase"       test "$(lget 'No Comment Lead' notionError)" = 'comment: no column "comment on phase"'
 assert "phase still set"                   nc "No Comment Lead" "p['Phase'].status.name === 'Лід'"
 assert "nothing guessed into Notes"        nc "No Comment Lead" "Object.keys(p).sort().join('|') === ['Phase', 'Клієнт'].sort().join('|')"
 assert "every answer in the page text"     nc "No Comment Lead" "lines.join('|') === ['Region: Europe', 'Budget: €60,000 – 100,000', 'Buying: Online purchase', 'Horse: Donatello B', 'Contact: +32 470 99 88 77', 'Page: $HORSE_URL', 'Received: $(utc "$(lget 'No Comment Lead' createdAt)")'].join('|')"
 curl -s -o /dev/null -X POST "$NOTION/__schema?s=nophase"
 nlead 62 "No Phase Lead"
 assert "no phase → marked partial"         test "$(mark_of 'No Phase Lead')" = partial
-assert "reason: no phase"                  test "$(lget 'No Phase Lead' notionError)" = 'no column "phase"'
+assert "reason: no phase"                  test "$(lget 'No Phase Lead' notionError)" = 'phase: no column "phase"'
 assert "no other column taken as phase"    nc "No Phase Lead" "!('Stage' in p) && p['Клієнт'].title[0].text.content === 'No Phase Lead'"
 assert "answers in the page text"          nc "No Phase Lead" "lines[0] === 'Region: Europe' && lines.some(l => l.startsWith('Received: '))"
 curl -s -o /dev/null -X POST "$NOTION/__schema?s=nooption"
 nlead 63 "No Option Lead"
 assert "no Лід option → marked partial"    test "$(mark_of 'No Option Lead')" = partial
-assert "reason: no such option"            test "$(lget 'No Option Lead' notionError)" = '"Phase" has no option "Лід"'
+assert "reason: no such option"            test "$(lget 'No Option Lead' notionError)" = 'phase: "Phase" has no option "Лід"'
 assert "no option is invented"             nc "No Option Lead" "!('Phase' in p) && lines.length > 0"
 export PAGES_BEFORE="$(curl -s "$NOTION/__calls" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).filter(x=>x.path==="/v1/pages").length))')"
 check "resend skips partial cards"         200 '"sent":0' -H "$NW_AUTH" -H "$JSON" -d '{}' "$NW/admin/notion/resend"

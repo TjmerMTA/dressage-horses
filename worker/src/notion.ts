@@ -142,19 +142,20 @@ export function buildCard(env: Env, lead: Lead, schema: Prop[], dbId: string): C
   const problems: string[] = [];
 
   const phase = schema.find((p) => p.type !== "title" && norm(p.name) === norm(phaseName));
-  if (!phase) problems.push(`no column "${phaseName}"`);
-  else if (phase.type !== "status" && phase.type !== "select") problems.push(`"${phase.name}" is ${phase.type}, not select or status`);
+  // Each reason starts with "phase:" or "comment:", so the admin can tell which one it was.
+  if (!phase) problems.push(`phase: no column "${phaseName}"`);
+  else if (phase.type !== "status" && phase.type !== "select") problems.push(`phase: "${phase.name}" is ${phase.type}, not select or status`);
   else {
     // An option that does not exist is never created: it would add a column to his board.
     const option = (phase.options || []).find((o) => norm(o) === norm(phaseValue));
-    if (!option) problems.push(`"${phase.name}" has no option "${phaseValue}"`);
+    if (!option) problems.push(`phase: "${phase.name}" has no option "${phaseValue}"`);
     else properties[phase.name] = phase.type === "status" ? { status: { name: option } } : { select: { name: option } };
   }
 
   const lines = leadLines(lead);
   const comment = schema.find((p) => p.type !== "title" && norm(p.name) === norm(commentName));
-  if (!comment) problems.push(`no column "${commentName}"`);
-  else if (comment.type !== "rich_text") problems.push(`"${comment.name}" is ${comment.type}, not text`);
+  if (!comment) problems.push(`comment: no column "${commentName}"`);
+  else if (comment.type !== "rich_text") problems.push(`comment: "${comment.name}" is ${comment.type}, not text`);
   else properties[comment.name] = { rich_text: richText(lines.join("\n")) };
 
   const body: Record<string, unknown> = { parent: { database_id: dbId }, properties };

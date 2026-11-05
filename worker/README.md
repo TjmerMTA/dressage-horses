@@ -103,8 +103,8 @@ Received: 2026-11-05 08:23 UTC
   "phase" has no option "Лід"), nothing is guessed and nothing is dropped. The card is
   still created with the name and with whatever of the two *was* found, and **every answer
   is written into the card's page text**. The lead is marked **"In Notion, incomplete"** in
-  the admin; hovering the mark says which property was missing. Move that card into Лід
-  by hand; once the name is fixed, the next leads land correctly. An incomplete card is not
+  the admin; hovering the mark says which property was missing. If it was "phase", move that
+  card into Лід by hand. Once the name is fixed, the next leads land correctly. An incomplete card is not
   sent again (that would make a second card).
 - **If Notion fails** (down, busy, wrong key), the Worker tries again twice, then marks the
   lead **"Not in Notion yet"**. **Send N to Notion** on the Leads screen sends every lead
@@ -186,7 +186,7 @@ gets a 403. Admin calls send `Authorization: Bearer <token>`.
 | `POST /lead` | — | JSON, max 4 KB, 5 per IP per 10 min → 429. Reply is always exactly `{"ok":true}`. |
 | `POST /admin/login` | — | `{"password"}` → `{"ok":true,"token","expiresIn":43200}`. 5 attempts per IP per 15 min (right or wrong) → 429. |
 | `POST /admin/logout` | session | Ends the session. |
-| `GET /admin/leads?from=YYYY-MM-DD&to=YYYY-MM-DD` | session | `{"ok","count","truncated","leads":[…]}`, newest first. Both dates optional, inclusive, UTC. Once Notion is configured the reply also has `"notion":true`, and each lead that was tried has `notion` (`"sent"`, `"partial"` = a card without phase or comment, `"failed"` = no card), `notionAt`, and for the last two a short `notionError` such as `"401 unauthorized"` or `no column "phase"`. |
+| `GET /admin/leads?from=YYYY-MM-DD&to=YYYY-MM-DD` | session | `{"ok","count","truncated","leads":[…]}`, newest first. Both dates optional, inclusive, UTC. Once Notion is configured the reply also has `"notion":true`, and each lead that was tried has `notion` (`"sent"`, `"partial"` = a card without phase or comment, `"failed"` = no card), `notionAt`, and for the last two a short `notionError` such as `"401 unauthorized"` or `phase: no column "phase"`. |
 | `GET /admin/leads.csv?from=&to=` | session | UTF-8 CSV (with BOM, for Excel). Cells that start like a formula are prefixed with `'`. |
 | `GET /admin/content?path=` | session | File: `{"type":"file","path","sha","size","encoding":"utf-8"\|"base64","content"}`. Directory: `{"type":"dir","entries":[{name,path,type,sha,size}]}`. |
 | `PUT /admin/content` | session | `{"path","content","sha"?,"message"?}`. Max 512 KB of text. `sha` is the one from GET (omit it to create a new file). A stale `sha` → 409. `.json` must parse. → `{"ok","path","sha","commit"}` |
