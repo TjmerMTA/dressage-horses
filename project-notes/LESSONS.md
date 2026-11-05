@@ -1,6 +1,6 @@
 # Lessons from this project
 
-Notebook v1 — updated 2026-11-04
+Notebook v1 — updated 2026-11-05
 
 - 2026-11-04 — `dev.siteboosty.com` is not a free address: it is the custom domain of
   the repo `TjmerMTA/pflegedienst-alno` (gh-pages). Anything published there takes the
@@ -19,3 +19,11 @@ Notebook v1 — updated 2026-11-04
   so its asset links are absolute. On the fallback address
   `tjmermta.github.io/dressage-horses/` the stylesheets therefore 404 and the page
   shows unstyled. It only looks right on the real domain.
+- 2026-11-05 — `npx wrangler secret put NAME` typed in this non-interactive shell reads
+  empty stdin, stores nothing and still prints "Success". The admin then answered
+  "server not configured" for two days. Always pipe the value in:
+  `gh auth token | npx wrangler secret put GITHUB_TOKEN`. Evidence: the GITHUB_TOKEN
+  secret existed and was empty; written up in `worker/README.md`.
+- 2026-11-05 — A `team tell` message containing backticks inside double quotes is run by
+  zsh ("command not found: phase"). Build it with `msg=$(cat <<'XX' … XX)` and pass
+  `"$msg"`. Evidence: a task card for Pavel was sent mangled.

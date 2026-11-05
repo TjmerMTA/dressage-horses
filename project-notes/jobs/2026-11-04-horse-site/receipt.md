@@ -102,11 +102,92 @@ our own "page does not exist", not GitHub's.
    back.
 6. **Who owns the photographs**, and whether the people in them agreed to appear on a
    website, was never checked.
-7. **The Worker has not been redeployed** since Viktor's clearer error message was
-   merged. Not urgent: the admin understands both the old and the new wording.
+7. **The Notion connection is not set up yet.** The code is live; the key and the
+   database are not. The client pastes them into the admin's Notion screen — see the
+   addendum below.
 
 ## Cost
 
 Estimated 8–15% of the week; **7.1% spent**, within the estimate.
 Eight people were hired and stood down: Anna, Photos, Viktor, Boris, Egor, Clara,
 Dmitri, Lena, Nina. Eleven pieces, all merged.
+
+---
+
+# Addendum, 2026-11-05 — the quiz feeds Notion
+
+Added after the job closed, at the client's request. Two pieces, both merged, both live.
+
+## What he asked for, and what he gets
+
+> "I need every filled form to be created as a new card… all answers simply entered as
+> text in the field «comment on phase»… Face = Lead so it lands in the right column."
+
+A filled quiz now becomes one card on his board "Підбір для клієнтів / Clients
+Selection": the status **Face** set to **Lead**, so it appears in that column, and every
+answer written as plain text into **comment on phase** — the four questions with their
+answers, the contact details, the time, and where the visitor came from.
+
+> "не готовий розбиратись з конекшенами зараз" — he did not want to deal with
+> connections.
+
+So nothing is set up on the command line. In the admin there is a **Notion** screen: he
+pastes the integration key, pastes the link to the database straight from the browser's
+address bar, presses **Check connection**, and the three name fields turn into
+drop-downs built from his real database, with Face / Lead / comment on phase already
+chosen. Press **Save**. There is an on/off switch that keeps the key, and removing the
+key is a separate red confirmed action.
+
+If it fails, the screen names which of four things is wrong — the key, the integration
+not being invited into the database, the link pointing at a page instead of a database,
+or Notion itself being down — and says what to press to fix it.
+
+## The rule that matters
+
+The lead is saved in our own store **first**, and only then sent to Notion. Notion being
+down, misconfigured or switched off never loses a request: it stays in the admin's Leads
+screen marked as not sent, with a **Send again** button. The same lead is never sent
+twice — if the send is already on its way, a second attempt is refused rather than
+doubling the card.
+
+## Try it yourself
+
+1. Open https://dev.siteboosty.com/admin/, log in, go to **Notion**.
+2. Paste the key and the database link, press **Check connection** — it should name the
+   database and list its properties.
+3. Pick Face / Lead / comment on phase, press **Save**, then fill the quiz on
+   https://dev.siteboosty.com/ — one card appears in the Lead column.
+
+## What was checked
+
+- 327 automated checks pass (230 for the delivery, 97 for the settings screen).
+- The whole path by hand: a wrong key, an uninvited integration, a page instead of a
+  database, Notion down — each gives its own message; the drop-downs fill from the
+  database; a lead sent with the switch off reaches Notion after **Send again**.
+- The live Worker answers on the new addresses after the deploy of 2026-11-05 (version
+  bc1c579a); `GET /admin/notion/config` reports "not set", with the fallback names
+  Face / Lead / comment on phase.
+
+## What was not checked, and the known limits
+
+- **The real Notion API was never called.** Everything was tested against a stand-in.
+  The error codes for a page id (400) and for a missing "Read content" permission (403)
+  are assumed. The first real lead is the real test — and if it fails, the lead is kept
+  with a Send again button, so nothing is lost.
+- **The accepted key shape** is `ntn_` or `secret_` followed by 20–120 letters and
+  digits. A real key in some other shape would be refused as malformed.
+- **A database with several data sources** cannot be written through API version
+  2022-06-28, which is the one in use.
+- **The key is stored in Cloudflare KV**, not as a Worker secret: it never comes back to
+  the browser, but anyone with access to the Cloudflare account can read it. This was
+  the price of setting it up from the admin at all.
+- **A changed setting takes up to a minute** to reach every Cloudflare location. A lead
+  arriving in that minute may use the old settings.
+- **A lead that arrives while Notion is switched off** shows "Sending to Notion…" for
+  its first 60 seconds, because an in-flight send is given that long before it counts as
+  failed.
+
+## Cost
+
+Two pieces, about 1.5% of the week on top of the job's 7.1%. Two people hired and stood
+down: Pavel (the delivery), Rita (the admin screen).

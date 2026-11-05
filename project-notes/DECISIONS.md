@@ -1,6 +1,6 @@
 # Decisions
 
-Notebook v1 — updated 2026-11-04
+Notebook v1 — updated 2026-11-05
 
 All of these were taken by the director, not the client, under the client's standing
 rule "do not ask, choose the sensible option and say what you assumed". Any of them
@@ -62,3 +62,27 @@ footer. They are missing because nobody has given a handle or a number; the rule
 hide a link with no address rather than ship a dead one. Kept. The three values are
 waiting in the admin's "Before you go live" screen; filling them in makes the icons
 appear with no code change.
+
+## 2026-11-05 — Every quiz answer goes to Notion as one card
+Asked by the client (Danylo Shevchenko, by Telegram, with a screenshot of his board
+"Підбір для клієнтів / Clients Selection"): "I need every filled form to be created as
+a new card… all answers simply entered as text in the field «comment on phase»… so that
+the card is created in the right column, «phase» has to pick correctly." Clarified by
+him: the board's columns are phases, and a card is moved by changing the status named
+"Face"; a new card must have Face = Lead.
+How: the Worker writes the card itself, after the lead is already saved in its own
+store, so Notion being down never loses a request. A failed send is kept and can be
+resent from the admin. Nothing is read back out of Notion.
+Revisit when: the client renames the board's properties, or wants separate fields
+instead of one text block.
+
+## 2026-11-05 — The Notion connection is set up in the admin, not from the command line
+Asked by the person: "не готовий розбиратись з конекшенами зараз по єтому добавь в
+админку настройки для єтого." So the key, the database, and the three property names
+live in Cloudflare KV under one key `notion:config`, editable in the admin's Notion
+screen, with the `wrangler.toml` values as the fallback.
+The cost of this, accepted knowingly: the key is in KV rather than a Worker secret, so
+anyone with access to the Cloudflare account can read it in the KV browser. A secret
+cannot be written from a Worker, and the whole point was to stop needing a deploy.
+Revisit when: the client wants the key out of KV — then it goes back to
+`wrangler secret put NOTION_TOKEN` and the admin screen only shows the names.
