@@ -9,6 +9,17 @@ export interface Env {
   GITHUB_API_BASE?: string;
   ADMIN_PASSWORD_HASH?: string;
   GITHUB_TOKEN?: string;
+  /** Plain var: the Notion database id (or its page address). Empty → Notion is off. */
+  NOTION_DB?: string;
+  /** Secret: the Notion internal integration token. Empty → Notion is off. */
+  NOTION_TOKEN?: string;
+  /** Plain vars: the status his board is grouped by ("Face"), the option a new card gets ("Lead"),
+   *  and the text property that receives every answer ("comment on phase"). Empty → those defaults. */
+  NOTION_STAGE_PROP?: string;
+  NOTION_STAGE_VALUE?: string;
+  NOTION_COMMENT_PROP?: string;
+  /** Only for local tests (points at a mock). Unset in production → api.notion.com. */
+  NOTION_API_BASE?: string;
 }
 
 /** An error whose message is safe to show to the caller. */

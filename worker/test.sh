@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # End-to-end test of every endpoint against a local `npx wrangler dev`.
 #
-# It starts its own wrangler dev (fresh, throw-away KV state) and a mock GitHub
-# Contents API, with a random one-off admin password and a dummy GitHub token that
+# It starts its own wrangler dev (fresh, throw-away KV state), a mock GitHub
+# Contents API and a mock Notion API, with a random one-off admin password and dummy
+# GitHub and Notion tokens that
 # exist only for the length of the run. Nothing real is touched; nothing is written
 # into the repository. Exit code is the number of failed checks (0 = all passed).
 #
@@ -14,6 +15,9 @@ PORT="${PORT:-8787}"
 GH_PORT="${GH_PORT:-8788}"
 BASE="http://127.0.0.1:$PORT"
 GH="http://127.0.0.1:$GH_PORT"
+NOTION_PORT=$((PORT + 3))   # mock Notion
+NW_PORT=$((PORT + 5))       # the Worker with Notion switched on
+NOTION="http://127.0.0.1:$NOTION_PORT"
 ORIGIN="https://dev.siteboosty.com"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/dh-api-test.XXXXXX")"
 PIDS=()
@@ -22,7 +26,8 @@ cleanup() {
   wait 2>/dev/null
   pkill -f "wrangler dev --port $PORT " 2>/dev/null
   pkill -f "wrangler dev --port $((PORT + 7)) " 2>/dev/null
-  rm -rf "$TMP"
+  pkill -f "wrangler dev --port $NW_PORT " 2>/dev/null
+  [[ -n "${KEEP_TMP:-}" ]] && echo "kept $TMP" || rm -rf "$TMP"
 }
 trap cleanup EXIT
 
@@ -30,13 +35,19 @@ trap cleanup EXIT
 PW="$(openssl rand -hex 16)"
 PW_HASH="$(printf %s "$PW" | shasum -a 256 | cut -d' ' -f1)"
 GH_TOKEN_DUMMY="test-$(openssl rand -hex 8)"
+NOTION_TOKEN_DUMMY="ntn_test$(openssl rand -hex 12)"
+NOTION_DB_ID="$(openssl rand -hex 16)"
+# The main Worker has a Notion database id but no Notion token: Notion is off, no call may be made.
 cat > "$TMP/test.env" <<EOF
 ADMIN_PASSWORD_HASH=$PW_HASH
 GITHUB_TOKEN=$GH_TOKEN_DUMMY
 GITHUB_API_BASE=$GH
+NOTION_DB=$NOTION_DB_ID
+NOTION_API_BASE=$NOTION
 EOF
 
 node test/mock-github.mjs "$GH_PORT" "$GH_TOKEN_DUMMY" & PIDS+=($!)
+node test/mock-notion.mjs "$NOTION_PORT" "$NOTION_TOKEN_DUMMY" "$NOTION_DB_ID" & PIDS+=($!)
 npx wrangler dev --port "$PORT" --ip 127.0.0.1 --persist-to "$TMP/state" --env-file "$TMP/test.env" \
   --show-interactive-dev-session=false > "$TMP/wrangler.log" 2>&1 & PIDS+=($!)
 
@@ -69,6 +80,8 @@ NOW_MS=$(( $(date +%s) * 1000 ))
 TS=$(( NOW_MS - 90000 ))   # form opened 90 seconds ago
 TODAY="$(date -u +%Y-%m-%d)"
 YESTERDAY="$(node -e 'console.log(new Date(Date.now()-864e5).toISOString().slice(0,10))')"
+# Requests the mock Notion has received (for the "Notion is off" checks).
+notion_count() { curl -s "$NOTION/__calls" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).length))'; }
 
 # fixtures
 node -e '
@@ -151,6 +164,13 @@ check "leads from=today"                   200 '"count":3' -H "$AUTH" "$BASE/adm
 check "leads to=yesterday"                 200 '"count":0' -H "$AUTH" "$BASE/admin/leads?to=$YESTERDAY"
 check "leads bad date"                     400 'YYYY-MM-DD' -H "$AUTH" "$BASE/admin/leads?from=2026-13-01"
 check "leads from after to"                400 'after' -H "$AUTH" "$BASE/admin/leads?from=$TODAY&to=$YESTERDAY"
+
+echo "== Notion is off: a database id but no token"
+check "leads list as before"               200 '"count":3' -H "$AUTH" "$BASE/admin/leads"
+assert "list says nothing about Notion"    bash -c "! grep -q 'notion' '$TMP/body'"
+assert "no call to Notion was made"        test "$(notion_count)" = 0
+check "resend says Notion is off"          503 'notion not configured' -H "$AUTH" -H "$JSON" -d '{}' "$BASE/admin/notion/resend"
+check "resend without session"             401 'session' -H "$JSON" -d '{}' "$BASE/admin/notion/resend"
 
 echo "== GET /admin/leads.csv"
 check "csv without session"                401 'session' "$BASE/admin/leads.csv"
@@ -254,7 +274,9 @@ check "logout again"                       401 'session' -X POST -H "$AUTH" "$BA
 
 echo "== a Worker whose GITHUB_TOKEN secret is empty (wrangler secret put with no input)"
 NT_PORT=$((PORT + 7))
-printf 'ADMIN_PASSWORD_HASH=%s\nGITHUB_TOKEN=\nGITHUB_API_BASE=%s\n' "$PW_HASH" "$GH" > "$TMP/notoken.env"
+# This one has a Notion token but no database id: Notion is off here too.
+printf 'ADMIN_PASSWORD_HASH=%s\nGITHUB_TOKEN=\nGITHUB_API_BASE=%s\nNOTION_TOKEN=%s\nNOTION_API_BASE=%s\n' \
+  "$PW_HASH" "$GH" "$NOTION_TOKEN_DUMMY" "$NOTION" > "$TMP/notoken.env"
 npx wrangler dev --port "$NT_PORT" --ip 127.0.0.1 --persist-to "$TMP/state-nt" --env-file "$TMP/notoken.env" \
   --show-interactive-dev-session=false > "$TMP/wrangler-nt.log" 2>&1 & PIDS+=($!)
 for _ in $(seq 1 60); do curl -s -m 1 "http://127.0.0.1:$NT_PORT/health" >/dev/null 2>&1 && break; sleep 0.5; done
@@ -264,7 +286,193 @@ NT_AUTH="Authorization: Bearer $(jget token)"
 check "content says the key is missing"    503 'repository not configured' -H "$NT_AUTH" "$NT/admin/content?path=src/content/texts/home.json"
 check "upload says the key is missing"     503 'repository not configured' -H "$NT_AUTH" -F slug=duke -F "file=@$TMP/a.png;type=image/png" "$NT/admin/upload"
 check "leads are not affected"             200 '"leads"' -H "$NT_AUTH" "$NT/admin/leads"
+check "a lead with a token but no db id"   200 '{"ok":true}' -H "$(ip 41)" -H "$JSON" \
+  -d "{\"name\":\"Token Only\",\"region\":\"Asia\",\"budget\":\"x\",\"format\":\"y\",\"contact\":\"+1 555 123 4567\",\"ts\":$TS}" "$NT/lead"
+sleep 2
+assert "still no call to Notion"           test "$(notion_count)" = 0
 pkill -f "wrangler dev --port $NT_PORT " 2>/dev/null
+
+echo "== Notion switched on: a card in his database"
+# The main Worker stops; this one opens the same stored data, so its three leads are
+# "leads that arrived before Notion was connected". The stage / comment property names and
+# the stage option are not set here: the defaults in wrangler.toml are what is tested.
+pkill -f "wrangler dev --port $PORT " 2>/dev/null
+sleep 1
+NW="http://127.0.0.1:$NW_PORT"
+cat > "$TMP/notion.env" <<EOF
+ADMIN_PASSWORD_HASH=$PW_HASH
+GITHUB_TOKEN=$GH_TOKEN_DUMMY
+GITHUB_API_BASE=$GH
+NOTION_TOKEN=$NOTION_TOKEN_DUMMY
+NOTION_DB="https://www.notion.so/team/Clients-Selection-$NOTION_DB_ID?v=$(openssl rand -hex 16)"
+NOTION_API_BASE=$NOTION
+EOF
+npx wrangler dev --port "$NW_PORT" --ip 127.0.0.1 --persist-to "$TMP/state" --env-file "$TMP/notion.env" \
+  --show-interactive-dev-session=false > "$TMP/wrangler-nw.log" 2>&1 & PIDS+=($!)
+for _ in $(seq 1 60); do curl -s -m 1 "$NW/health" >/dev/null 2>&1 && break; sleep 0.5; done
+
+nc() { node test/ncheck.mjs "$NOTION" "$@"; }   # nc "<card title>" '<expression>'  (see test/ncheck.mjs)
+leads_now() { curl -s -o "$TMP/leads.json" -H "$NW_AUTH" "$NW/admin/leads"; }
+lget() { node -e 'const j=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const l=(j.leads||[]).find(l=>l.name===process.argv[2]);const v=l?l[process.argv[3]]:undefined;console.log(v===undefined?"":v)' "$TMP/leads.json" "$1" "$2"; }
+mark_of() { # waits up to 15 s for the lead called $1 to get a Notion mark, then prints it
+  local m=""; for _ in $(seq 1 30); do leads_now; m="$(lget "$1" notion)"; [[ -n "$m" ]] && break; sleep 0.5; done; echo "$m"; }
+nlead() { # nlead <ip> <name> [extra JSON fields, starting with a comma]
+  check "lead: $2" 200 '{"ok":true}' -H "$(ip "$1")" -H "$JSON" \
+    -d "{\"name\":\"$2\",\"region\":\"Europe\",\"budget\":\"€60,000 – 100,000\",\"format\":\"Online purchase\",\"contact\":\"+32 470 99 88 77\",\"ts\":$TS${3:-}}" "$NW/lead"; }
+utc() { node -e 'const c=process.argv[1];console.log(c.slice(0,10)+" "+c.slice(11,16)+" UTC")' "$1"; }
+HORSE_URL='https://dev.siteboosty.com/?utm_source=ig#quiz?horse=donatello-b'
+TEXT='(p) => Object.values(p).find(v => v.rich_text) ? Object.values(p).find(v => v.rich_text).rich_text.map(t => t.text.content).join("") : null'
+
+check "login (Notion Worker)"              200 '"token"' -H "$(ip 50)" -H "$JSON" -d "{\"password\":\"$PW\"}" "$NW/admin/login"
+NW_AUTH="Authorization: Bearer $(jget token)"
+check "leads list says Notion is on"       200 '"notion":true' -H "$NW_AUTH" "$NW/admin/leads"
+assert "older leads carry no mark yet"     bash -c "! grep -q '\"notion\":\"' '$TMP/body'"
+
+echo "== Notion: the stage \"Face\" is a status, the title is not called Name"
+nlead 51 "Full Lead" ",\"consent\":true,\"page\":\"$HORSE_URL\""
+assert "reply is exactly {ok:true}"        test "$(cat "$TMP/body")" = '{"ok":true}'
+assert "full lead reached Notion"          test "$(mark_of 'Full Lead')" = sent
+EXPECT="$(printf '%s\n' 'Region: Europe' 'Budget: €60,000 – 100,000' 'Buying: Online purchase' 'Horse: Donatello B' \
+  'Contact: +32 470 99 88 77' 'Consent: yes' "Page: $HORSE_URL" "Received: $(utc "$(lget 'Full Lead' createdAt)")")"
+export EXPECT
+assert "one card created"                  nc "Full Lead" 'cs.length === 1'
+assert "token and Notion-Version sent"     nc "Full Lead" "c.auth === 'Bearer $NOTION_TOKEN_DUMMY' && c.version === '2022-06-28'"
+assert "db id from the address, not ?v="   nc "Full Lead" "c.body.parent.database_id === '$NOTION_DB_ID'"
+assert "name in his title property"        nc "Full Lead" "p['Клієнт'].title[0].text.content === 'Full Lead'"
+assert "stage Face (status) set to Lead"    nc "Full Lead" "p['Face'].status.name === 'Lead'"
+assert "all answers in comment on phase"   nc "Full Lead" "($TEXT)(p) === process.env.EXPECT"
+assert "exactly three properties"          nc "Full Lead" "Object.keys(p).sort().join('|') === ['Comment on phase', 'Face', 'Клієнт'].sort().join('|')"
+assert "no page text on a complete card"   nc "Full Lead" '!c.body.children'
+nlead 52 "Min Lead"
+assert "lead without optional answers sent" test "$(mark_of 'Min Lead')" = sent
+EXPECT="$(printf '%s\n' 'Region: Europe' 'Budget: €60,000 – 100,000' 'Buying: Online purchase' \
+  'Contact: +32 470 99 88 77' "Received: $(utc "$(lget 'Min Lead' createdAt)")")"
+assert "no line for a missing answer"      nc "Min Lead" "($TEXT)(p) === process.env.EXPECT"
+assert "no empty string anywhere"          nc "Min Lead" '!JSON.stringify(c.body).includes(String.fromCharCode(34, 34))'
+assert "schema read once, then cached"     nc "" 'reads.length === 1'
+
+echo "== Notion: failures, retries and the mark"
+assert "the chosen properties are logged"  grep -qF 'card: title "Клієнт"; stage "Face" (status, configured name); comment "Comment on phase" (rich_text, configured name)' "$TMP/wrangler-nw.log"
+nlead 54 "Notion401 Lead"
+assert "401 → reply still {ok:true}"       test "$(cat "$TMP/body")" = '{"ok":true}'
+assert "401 → marked failed"               test "$(mark_of 'Notion401 Lead')" = failed
+assert "401 → reason recorded"             test "$(lget 'Notion401 Lead' notionError)" = "401 unauthorized"
+assert "401 → not retried"                 nc "Notion401 Lead" 'cs.length === 1'
+nlead 55 "Notion429 Lead"
+assert "429 → marked failed"               test "$(mark_of 'Notion429 Lead')" = failed
+assert "429 → reason recorded"             test "$(lget 'Notion429 Lead' notionError)" = "429 rate_limited"
+assert "429 → tried 3 times"               nc "Notion429 Lead" 'cs.length === 3'
+assert "429 → waited Retry-After"          nc "Notion429 Lead" 'cs[1].at - cs[0].at >= 900'
+nlead 56 "Notion500 Lead"
+assert "500 → marked failed"               test "$(mark_of 'Notion500 Lead')" = failed
+assert "500 → reason recorded"             test "$(lget 'Notion500 Lead' notionError)" = "500 internal_server_error"
+assert "500 → tried 3 times"               nc "Notion500 Lead" 'cs.length === 3'
+nlead 57 "Flaky Lead"
+assert "500 then 200 → sent"               test "$(mark_of 'Flaky Lead')" = sent
+assert "the retry made the 2nd call"       nc "Flaky Lead" 'cs.length === 2'
+assert "the retry waited (backoff)"        nc "Flaky Lead" 'cs[1].at - cs[0].at >= 400'
+T0="$(node -e 'console.log(Date.now())')"
+nlead 58 "Slow Lead"
+T1="$(node -e 'console.log(Date.now())')"
+assert "reply does not wait for Notion (4 s)" test $((T1 - T0)) -lt 2000
+assert "slow Notion → still sent"          test "$(mark_of 'Slow Lead')" = sent
+assert "failure log holds no lead data"    bash -c "! grep -v 'CF-KV-Metadata' '$TMP/wrangler-nw.log' | grep -qE 'Notion401|Notion429|Notion500|470 99 88 77'"
+
+echo "== POST /admin/notion/resend"
+check "resend without session"             401 'session' -H "$JSON" -d '{}' "$NW/admin/notion/resend"
+check "resend with an unknown field"       400 'unknown field' -H "$NW_AUTH" -H "$JSON" -d '{"all":true}' "$NW/admin/notion/resend"
+check "resend with a bad id"               400 'invalid field: id' -H "$NW_AUTH" -H "$JSON" -d '{"id":"../x"}' "$NW/admin/notion/resend"
+check "resend an unknown id"               404 'lead not found' -H "$NW_AUTH" -H "$JSON" -d '{"id":"00000000-0000-4000-8000-000000000000"}' "$NW/admin/notion/resend"
+check "resend an id and dates"             400 'not both' -H "$NW_AUTH" -H "$JSON" -d "{\"id\":\"00000000-0000-4000-8000-000000000000\",\"from\":\"$TODAY\"}" "$NW/admin/notion/resend"
+check "resend a bad date"                  400 'YYYY-MM-DD' -H "$NW_AUTH" -H "$JSON" -d '{"from":"2026-13-01"}' "$NW/admin/notion/resend"
+check "resend from after to"               400 'after' -H "$NW_AUTH" -H "$JSON" -d "{\"from\":\"$TODAY\",\"to\":\"$YESTERDAY\"}" "$NW/admin/notion/resend"
+# The three leads from before Notion was connected count as "maybe on their way" for a minute.
+leads_now
+WAIT_S="$(node -e 'const j=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const t=Math.max(...j.leads.filter(l=>!l.notion).map(l=>Date.parse(l.createdAt)));console.log(Math.max(0,Math.ceil((t+61000-Date.now())/1000)))' "$TMP/leads.json")"
+if [[ "$WAIT_S" -gt 0 ]]; then echo "   (waiting ${WAIT_S}s until the older leads are a minute old)"; sleep "$WAIT_S"; fi
+nlead 59 "Slow Pending"
+check "resend every lead"                  200 '"ok":true' -H "$NW_AUTH" -H "$JSON" -d '{}' "$NW/admin/notion/resend"
+assert "older leads sent, oldest first"    test "$(jget sent)" = 3
+assert "stops at the first 401"            test "$(jget failed)|$(jget stopped)" = "1|401 unauthorized"
+assert "the rest is left for next time"    test "$(jget remaining)" = 2
+assert "a lead still on its way is skipped" test "$(jget pending)" = 1
+assert "sent ones are skipped"             test "$(jget alreadySent)" = 4
+leads_now
+assert "older leads now marked sent"       test "$(lget 'Anna First' notion)|$(lget 'Omar Second' notion)|$(lget '=HYPERLINK(1)' notion)" = "sent|sent|sent"
+assert "older lead's card is complete"     nc "Omar Second" "p['Face'].status.name === 'Lead' && ($TEXT)(p).includes('Contact: +971 50 123 4567\nConsent: yes\nPage: https://dev.siteboosty.com/?utm_source=ig')"
+assert "the pending lead got its own send" test "$(mark_of 'Slow Pending')" = sent
+assert "...and only one card"              nc "Slow Pending" 'cs.length === 1'
+curl -s -o /dev/null -X POST "$NOTION/__mode?m=ok"   # Notion is healthy again
+check "resend one lead by id"              200 '"sent":1' -H "$NW_AUTH" -H "$JSON" -d "{\"id\":\"$(lget 'Notion401 Lead' id)\"}" "$NW/admin/notion/resend"
+leads_now
+assert "that lead is now marked sent"      test "$(lget 'Notion401 Lead' notion)|$(lget 'Notion401 Lead' notionError)" = "sent|"
+check "resend today's leads"               200 '"sent":2' -H "$NW_AUTH" -H "$JSON" -d "{\"from\":\"$TODAY\",\"to\":\"$TODAY\"}" "$NW/admin/notion/resend"
+assert "nothing failed, nothing left"      test "$(jget failed)|$(jget remaining)" = "0|0"
+check "resend again: nothing to do"        200 '"sent":0' -H "$NW_AUTH" -H "$JSON" -d '{}' "$NW/admin/notion/resend"
+assert "all 11 already sent"               test "$(jget alreadySent)" = 11
+assert "a sent lead is never sent twice"   nc "" "['Full Lead','Min Lead','Flaky Lead','Slow Lead','Anna First'].every(t => pages.filter(x => Object.values(x.body.properties).find(v => v.title).title[0].text.content === t).length === (t === 'Flaky Lead' ? 2 : 1))"
+
+echo "== Notion: the stage is a select; odd spacing and case in the names"
+curl -s -o /dev/null -X POST "$NOTION/__schema?s=select"
+nlead 60 "Select Lead"
+assert "sent after his schema changed"     test "$(mark_of 'Select Lead')" = sent
+assert "schema re-read after the 400"      nc "" 'reads.length === 2'
+assert "stage (select) set to his \"lead\"" nc "Select Lead" "p['FA CE'].select.name === 'lead' && !('Face' in p)"
+assert "two-language title property used" nc "Select Lead" "p['Клієнт / Client'].title[0].text.content === 'Select Lead'"
+assert "comment found ignoring spaces"     nc "Select Lead" "p['CommentOnPhase'].rich_text[0].text.content.startsWith('Region: Europe\nBudget: €60,000 – 100,000\nBuying: Online purchase\nContact: ')"
+
+echo "== Notion: the configured names are not there → the fallbacks"
+curl -s -o /dev/null -X POST "$NOTION/__schema?s=fbstatus"
+nlead 61 "Fallback Status"
+assert "sent through the fallbacks"        test "$(mark_of 'Fallback Status')" = sent
+assert "first status property is the stage" nc "Fallback Status" "p['Фаза'].status.name === 'Lead'"
+assert "text named like comment gets text" nc "Fallback Status" "p['Comments (phase)'].rich_text[0].text.content.startsWith('Region: ') && !('Notes' in p)"
+assert "the choice is logged"              grep -qF 'card: title "Клієнт"; stage "Фаза" (status, first status property); comment "Comments (phase)" (rich_text, text property named like comment)' "$TMP/wrangler-nw.log"
+curl -s -o /dev/null -X POST "$NOTION/__schema?s=fbselect"
+nlead 62 "Fallback Select"
+assert "a select called Статус is the stage" nc "Fallback Select" "p['Статус'].select.name === 'Lead' && !('Region' in p)"
+assert "that choice is logged too"         grep -qF 'stage "Статус" (select, select with a stage-like name)' "$TMP/wrangler-nw.log"
+
+echo "== Notion: a property is missing → a partial card"
+curl -s -o /dev/null -X POST "$NOTION/__schema?s=nocomment"
+nlead 63 "No Comment Lead" ",\"page\":\"$HORSE_URL\""
+assert "card created, marked partial"      test "$(mark_of 'No Comment Lead')" = partial
+assert "reason: no comment on phase"       test "$(lget 'No Comment Lead' notionError)" = 'comment: no text property "comment on phase"'
+assert "stage still set"                   nc "No Comment Lead" "p['Face'].status.name === 'Lead'"
+assert "nothing guessed into Notes"        nc "No Comment Lead" "Object.keys(p).sort().join('|') === ['Face', 'Клієнт'].sort().join('|')"
+assert "every answer in the page text"     nc "No Comment Lead" "lines.join('|') === ['Region: Europe', 'Budget: €60,000 – 100,000', 'Buying: Online purchase', 'Horse: Donatello B', 'Contact: +32 470 99 88 77', 'Page: $HORSE_URL', 'Received: $(utc "$(lget 'No Comment Lead' createdAt)")'].join('|')"
+curl -s -o /dev/null -X POST "$NOTION/__schema?s=nostage"
+nlead 64 "No Stage Lead"
+assert "no stage → marked partial"         test "$(mark_of 'No Stage Lead')" = partial
+assert "reason: no stage"                  test "$(lget 'No Stage Lead' notionError)" = 'stage: no status or select property "Face"'
+assert "an unrelated select is not taken"  nc "No Stage Lead" "!('Budget' in p) && p['Клієнт'].title[0].text.content === 'No Stage Lead'"
+assert "answers in the page text"          nc "No Stage Lead" "lines[0] === 'Region: Europe' && lines.some(l => l.startsWith('Received: '))"
+curl -s -o /dev/null -X POST "$NOTION/__schema?s=nooption"
+nlead 65 "No Option Lead"
+assert "no Lead option → marked partial"   test "$(mark_of 'No Option Lead')" = partial
+assert "reason names his options"          test "$(lget 'No Option Lead' notionError)" = 'stage: "Face" has no option "Lead"; it has: Лід, Підбір, Угода'
+assert "no option is invented"             nc "No Option Lead" "!('Face' in p) && lines.length > 0 && p['Comment on phase'].rich_text.length > 0"
+export PAGES_BEFORE="$(curl -s "$NOTION/__calls" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).filter(x=>x.path==="/v1/pages").length))')"
+check "resend skips partial cards"         200 '"sent":0' -H "$NW_AUTH" -H "$JSON" -d '{}' "$NW/admin/notion/resend"
+assert "partial cards count as delivered"  test "$(jget alreadySent)" = 17
+assert "no new card for a partial lead"    nc "" 'pages.length === Number(process.env.PAGES_BEFORE)'
+
+echo "== Notion: a long set of answers"
+curl -s -o /dev/null -X POST "$NOTION/__schema?s=status"
+node -e '
+const fs=require("fs"),[d,ts]=process.argv.slice(1);
+const fill=(w,n)=>(w.repeat(Math.ceil(n/w.length))).slice(0,n).trim();
+const slug="very-long-horse-name-"+"ab-".repeat(20).slice(0,59);
+const page="https://dev.siteboosty.com/?q="+"x".repeat(500-60-slug.length)+"#quiz?horse="+slug;
+const lead={name:"Long Answers",region:fill("Europe and the Gulf ",100),budget:fill("€100,000+ and flexible ",100),
+  format:fill("I will come to try the horse in person ",100),contact:"a".repeat(180)+"@example.com",consent:true,page,ts:Number(ts)};
+fs.writeFileSync(d+"/long.json",JSON.stringify(lead));' "$TMP" "$TS"
+export LONGJ="$(cat "$TMP/long.json")"
+check "lead: Long Answers"                 200 '{"ok":true}' -H "$(ip 66)" -H "$JSON" --data-binary "@$TMP/long.json" "$NW/lead"
+assert "long lead sent"                    test "$(mark_of 'Long Answers')" = sent
+assert "every long answer whole in the text" nc "Long Answers" "(() => { const t = ($TEXT)(p), l = JSON.parse(process.env.LONGJ); return t.split('\n').length === 8 && [l.region, l.budget, l.format, l.contact, l.page].every(v => t.includes(v)); })()"
+assert "each text piece within Notion's 2000" nc "Long Answers" "p['Comment on phase'].rich_text.every(t => t.text.content.length <= 2000) && ($TEXT)(p).length > 1000"
+pkill -f "wrangler dev --port $NW_PORT " 2>/dev/null
 
 echo "== secrets stay out of the logs"
 assert "password not in wrangler log"      bash -c "! grep -qF '$PW' '$TMP/wrangler.log'"
@@ -272,6 +480,12 @@ assert "token not in wrangler log"         bash -c "! grep -qF '$TOKEN' '$TMP/wr
 assert "password hash not in wrangler log" bash -c "! grep -qF '$PW_HASH' '$TMP/wrangler.log'"
 assert "github token not in wrangler log"  bash -c "! grep -qF '$GH_TOKEN_DUMMY' '$TMP/wrangler.log'"
 assert "no unhandled errors in the log"    bash -c "! grep -q 'unhandled' '$TMP/wrangler.log'"
+assert "notion token not in any log"       bash -c "! grep -qF '$NOTION_TOKEN_DUMMY' '$TMP'/wrangler*.log"
+# Local wrangler dev (not Cloudflare) prints a "CF-KV-Metadata contains non-ASCII" warning, with
+# the stored lead in it, whenever a lead with a € in it is read back with KV.get. That line is the
+# local KV simulator's, not ours; everything else in the log must hold no lead data.
+assert "no lead data in the Notion log"    bash -c "! grep -v 'CF-KV-Metadata' '$TMP/wrangler-nw.log' | grep -qE 'Full Lead|Mail Lead|mail.lead@|470 99 88 77|Donatello|Anna First'"
+assert "no unhandled errors, Notion Worker" bash -c "! grep -qE 'unhandled|notion sync' '$TMP/wrangler-nw.log'"
 
 echo
 echo "RESULT: $PASS passed, $FAIL failed"

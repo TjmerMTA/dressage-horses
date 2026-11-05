@@ -5,14 +5,15 @@ import {
 } from "./content";
 import { Env, HttpError, errorResponse, isAllowedOrigin, json, preflight, readJson, withCors } from "./http";
 import { handleLead, handleLeads, handleLeadsCsv } from "./leads";
+import { handleNotionResend } from "./notion";
 import { SESSION_TTL_SEC, checkPassword, createSession, deleteSession, rateLimit, requireSession } from "./security";
 
-type Handler = (request: Request, env: Env) => Promise<Response>;
+type Handler = (request: Request, env: Env, ctx: ExecutionContext) => Promise<Response>;
 
 /** Wraps a handler so it only runs with a valid admin session. */
-const admin = (h: Handler): Handler => async (request, env) => {
+const admin = (h: Handler): Handler => async (request, env, ctx) => {
   await requireSession(request, env);
-  return h(request, env);
+  return h(request, env, ctx);
 };
 
 async function login(request: Request, env: Env): Promise<Response> {
@@ -42,19 +43,20 @@ const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   "/admin/raw": { GET: admin(handleRaw) },
   "/admin/deploy-status": { GET: admin(handleDeployStatus) },
   "/admin/upload": { POST: admin(handleUpload) },
+  "/admin/notion/resend": { POST: admin(handleNotionResend) },
 };
 
-async function route(request: Request, env: Env): Promise<Response> {
+async function route(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const { pathname } = new URL(request.url);
   const methods = ROUTES[pathname];
   if (!methods) return errorResponse(404, "not found");
   const handler = methods[request.method];
   if (!handler) return errorResponse(405, "method not allowed", { Allow: Object.keys(methods).join(", ") });
-  return handler(request, env);
+  return handler(request, env, ctx);
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const origin = request.headers.get("Origin");
     // Browsers always send Origin cross-site; anything not on the list is refused outright.
     // Callers without Origin (curl, servers) are not browsers and get no CORS headers.
@@ -66,7 +68,7 @@ export default {
     }
     let resp: Response;
     try {
-      resp = await route(request, env);
+      resp = await route(request, env, ctx);
     } catch (e) {
       if (e instanceof HttpError) {
         resp = errorResponse(e.status, e.publicMessage, e.headers);

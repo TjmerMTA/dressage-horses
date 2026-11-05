@@ -24,21 +24,21 @@ and stores it in KV. KV stays the source of truth — Notion is a copy.
    `Notion-Version: 2022-06-28`, bearer `NOTION_TOKEN` (a new Worker secret), parent
    `{ database_id: NOTION_DB }` (a new plain var in `wrangler.toml`, not a secret —
    but leave it empty in the repo and say in the README where the client finds it).
-3. **The properties**, created in the client's database (write the exact list into
-   `worker/README.md` so the client can build the table in two minutes):
-   - `Name` — title
-   - `Contact` — phone number
-   - `Region`, `Budget`, `Buying` — select (Notion creates an option it has not seen,
-     which is what we want: the client can rename a quiz answer in the admin and
-     nothing breaks)
-   - `Horse` — rich text, taken out of the stored page address when there is one
-   - `Page` — url
-   - `Country` — rich text (the visitor's country code)
-   - `Consent` — checkbox
-   - `Received` — date, the lead's `createdAt`, in ISO form so Notion keeps the time
-   - `Source` — select, always `Website quiz`
-   Any value that is empty must be left out of the request, not sent as an empty
-   string: Notion rejects some of those.
+3. **The card** (rewritten 2026-11-05 after the client's answers; supersedes the earlier
+   property list and the per-column mapping). We write into HIS existing database
+   "Підбір для клієнтів / Clients Selection" and create no property and no option. A card
+   sets three properties and nothing else:
+   - his title property (whatever it is called) ← the person's name;
+   - the stage: status **Face** (a select works too) ← option **Lead**, so the card lands
+     in that board column (`NOTION_STAGE_PROP`, `NOTION_STAGE_VALUE` in `wrangler.toml`);
+   - **comment on phase** (`NOTION_COMMENT_PROP`) ← every answer as one plain-text block,
+     one labelled line each, in quiz order, then contact, page, time; horse when there is one.
+   Names are found forgivingly: the configured name (case and spaces ignored); else the
+   first status property; else a select called face/phase/фаза/status/статус. For the
+   comment: the configured name, else a text property whose name contains "comment". The
+   choice is logged by name and type. A stage option is never invented: if it is missing,
+   or the stage or comment is not found, the card is created anyway, every answer goes into
+   the page text, and the lead is marked `partial` (the error lists his real options).
 4. **When Notion is not configured** (either value missing), do nothing at all and do
    not log an error on every lead. This must be the normal state until the client
    supplies the two values, and the Worker must behave exactly as it does today.

@@ -1,12 +1,13 @@
 // Leads: newest first, date filter, search, CSV download, and an obvious "New" marker for
 // leads that arrived since the last visit.
 import { ApiError, api, downloadLeadsCsv } from "./api.js";
+import { notionMark, reachedNotion, sendMissing } from "./notion.js";
 import { field, formatDate, h, relativeTime, spinner, toast } from "./ui.js";
 
 const SEEN_KEY = "dh-admin-leads-seen"; // a timestamp only; no lead data is stored in the browser
 const REFRESH_MS = 60_000;
 
-let state = { leads: [], from: "", to: "", q: "", seenBefore: "", knownIds: new Set() };
+let state = { leads: [], from: "", to: "", q: "", seenBefore: "", knownIds: new Set(), notion: false };
 let refreshTimer = null;
 
 function readSeen() {
@@ -39,7 +40,7 @@ export function stopLeads() {
 
 export async function renderLeads(root) {
   stopLeads();
-  state = { leads: [], from: "", to: "", q: "", seenBefore: readSeen(), knownIds: new Set() };
+  state = { leads: [], from: "", to: "", q: "", seenBefore: readSeen(), knownIds: new Set(), notion: false };
 
   const from = field({ label: "From", input: h("input", { type: "date" }) });
   const to = field({ label: "To", input: h("input", { type: "date" }) });
@@ -48,6 +49,8 @@ export async function renderLeads(root) {
   const list = h("div", { class: "adm-leads" });
   const csvBtn = h("button", { type: "button", class: "btn btn-ghost btn-sm" }, "Download as CSV");
   const refreshBtn = h("button", { type: "button", class: "btn btn-ghost btn-sm" }, "Refresh");
+  // Notion: shown only when the Worker says Notion is connected.
+  const notionBtn = h("button", { type: "button", class: "btn btn-ghost btn-sm", hidden: true }, "");
   const filterForm = h("form", { class: "adm-filters", role: "search" },
     from.wrap, to.wrap,
     h("div", { class: "adm-filter-actions" },
@@ -56,11 +59,14 @@ export async function renderLeads(root) {
     search.wrap);
 
   root.replaceChildren(
-    h("div", { class: "adm-head" }, h("h2", {}, "Leads"), h("div", { class: "adm-head-actions" }, refreshBtn, csvBtn)),
+    h("div", { class: "adm-head" }, h("h2", {}, "Leads"), h("div", { class: "adm-head-actions" }, refreshBtn, notionBtn, csvBtn)),
     h("p", { class: "adm-muted" }, "Everyone who completed the quiz on the site. Newest first. ", zoneNote()),
     filterForm, count, list);
 
   const draw = () => {
+    const missing = state.notion ? state.leads.filter((l) => !reachedNotion(l)).length : 0;
+    notionBtn.hidden = !missing;
+    notionBtn.textContent = `Send ${missing} to Notion`;
     const q = search.input.value.trim().toLowerCase();
     const shown = q
       ? state.leads.filter((l) => [l.name, l.contact, l.region, l.budget, l.format, l.country, horseName(horseOf(l))].join(" ").toLowerCase().includes(q))
@@ -98,6 +104,7 @@ export async function renderLeads(root) {
       const r = await api("/admin/leads", { query: { from: state.from, to: state.to } });
       const fresh = quiet ? r.leads.filter((l) => !state.knownIds.has(l.id)) : [];
       state.leads = r.leads;
+      state.notion = r.notion === true;
       state.knownIds = new Set(r.leads.map((l) => l.id));
       draw();
       if (fresh.length) toast(`${fresh.length} new lead${fresh.length === 1 ? "" : "s"} just arrived.`);
@@ -119,7 +126,8 @@ export async function renderLeads(root) {
         h("td", { "data-label": "Received" },
           fresh ? h("span", { class: "adm-badge new" }, "New") : null,
           h("time", { datetime: l.createdAt, title: formatDate(l.createdAt) }, relativeTime(l.createdAt)),
-          h("span", { class: "adm-sub" }, formatDate(l.createdAt))),
+          h("span", { class: "adm-sub" }, formatDate(l.createdAt)),
+          state.notion ? notionMark(l) : null),
         h("td", { "data-label": "Name" }, h("strong", {}, l.name), horseLine(l), l.country ? h("span", { class: "adm-sub" }, `From ${l.country}`) : null),
         h("td", { "data-label": "Region" }, l.region),
         h("td", { "data-label": "Budget" }, l.budget),
@@ -135,6 +143,18 @@ export async function renderLeads(root) {
   filterForm.addEventListener("submit", (e) => { e.preventDefault(); load(); });
   search.input.addEventListener("input", draw);
   refreshBtn.addEventListener("click", () => load());
+  notionBtn.addEventListener("click", async () => {
+    notionBtn.disabled = true;
+    try {
+      const r = await sendMissing(state.from, state.to);
+      toast(r.message, r.ok ? "ok" : "err");
+      await load(true);
+    } catch (e) {
+      if (!(e instanceof ApiError && e.status === 401)) toast(e.message, "err");
+    } finally {
+      notionBtn.disabled = false;
+    }
+  });
   csvBtn.addEventListener("click", async () => {
     csvBtn.disabled = true;
     try {
