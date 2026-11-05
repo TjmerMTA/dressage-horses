@@ -6,7 +6,7 @@
   "header": {
     "eyebrow": "Horses for sale",
     "title": "Dressage horses we can show you now",
-    "lead": "A selection of horses from our network in Belgium, Germany and the Netherlands. Every horse has been seen by our team. Not the right one yet? Take the quiz and we look for you."
+    "lead": "A selection of horses from our network in Belgium, Germany and the Netherlands. Every horse has been seen by our team. Not the right one yet? Take the quiz and we'll look for you."
   },
   "filters": {
     "title": "Filter the horses",
@@ -24,7 +24,8 @@
     "count": "{count} horses",
     "countOne": "1 horse",
     "empty": "No horse matches these filters",
-    "emptyText": "Clear a filter, or tell us what you are looking for and we search our network for you."
+    "emptyText": "Clear a filter, or tell us what you are looking for and we'll search our network for you.",
+    "priceError": "“Price from” is higher than “Price up to”. Choose a lower minimum or a higher maximum."
   },
   "priceSteps": [
     25000,
@@ -53,6 +54,8 @@
     "eyebrow": "Dressage horse · {country}",
     "lead": "{age}-year-old {colour} {sex}, {height} cm · {level}",
     "gallery": "Photos of {name}",
+    "summaryTitle": "At a glance",
+    "soldButton": "TELL US WHAT YOU LIKED",
     "photo": "Photo {n} of {total}",
     "prev": "Previous photo",
     "next": "Next photo",
@@ -63,7 +66,7 @@
     "videoLink": "Watch the video",
     "enquire": "Ask about {name}",
     "enquireNote": "Two minutes, no obligation. We reply on WhatsApp.",
-    "soldNote": "This horse is sold. Tell us what you liked about it and we find you a similar one.",
+    "soldNote": "This horse is sold. Tell us what you liked about this horse and we'll find you a similar one.",
     "facts": {
       "price": "Price",
       "age": "Age",
@@ -86,7 +89,7 @@
     },
     "cta": {
       "title": "Not quite the one?",
-      "text": "Answer three questions and get a personal selection of 20 horses that fit your budget and your goals.",
+      "text": "Answer four questions and get a personal selection of 20 horses that fit your budget and your goals.",
       "button": "FIND ME A HORSE"
     },
     "metaTitle": "{name} — {age}-year-old {colour} {sex}, {level} | Dressage horse for sale",

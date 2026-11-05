@@ -78,6 +78,10 @@ export const KEY_LABELS = {
   skipLink: "“Skip to content” link text",
   menuLabel: "Menu button text",
   stickyCta: "Floating button text (phones)",
+  notFound: "“Page not found” page",
+  metaTitle: "Browser tab title",
+  home: "Button to the home page",
+  horses: "Button to the horse list",
   whatsapp: "WhatsApp",
   instagram: "Instagram link",
   tiktok: "TikTok link",
@@ -86,4 +90,6 @@ export const KEY_LABELS = {
   footer: "Footer",
   stepLabel: "Progress text (“{step}” and “{total}” are filled in)",
   thanksNamed: "Thank-you heading (“{name}” is filled in)",
+  noScript: "Quiz box text when the visitor’s browser has JavaScript off",
+  noScriptLink: "Link to the contact page under that text",
 };

@@ -19,7 +19,7 @@ xrays: clean
 photos:
   - ../../assets/horses/horse-bay-red-jacket.jpg
 photoAlt:
-  - Woman in a red jacket stands beside a dark bay horse on a paved yard
+  - Dark bay horse in a bridle standing side-on on a paved yard, a woman in a red jacket beside it
 listed: 2026-10-07
 featured: true
 ---

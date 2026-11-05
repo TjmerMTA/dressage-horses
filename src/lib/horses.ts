@@ -82,6 +82,14 @@ export function pickFeatured(horses: Horse[], count = 4): Horse[] {
   return [...featured, ...rest].slice(0, count);
 }
 
+/**
+ * The level as a value under a "Level" label (the Facts table): "S", not "Level S" —
+ * levelLabel() there gave "Level Level S".
+ */
+export function levelValue(level: Horse['data']['level'], t: Catalogue): string {
+  return level === 'young horse' ? t.labels.youngHorse : level;
+}
+
 /** "Level S", "Young horse", "Grand Prix": how the level reads on its own. */
 export function levelLabel(level: Horse['data']['level'], t: Catalogue): string {
   if (level === 'young horse') return t.labels.youngHorse;

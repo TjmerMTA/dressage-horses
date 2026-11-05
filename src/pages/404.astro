@@ -1,0 +1,27 @@
+---
+// The site's own "page not found". Astro writes it to dist/404.html, which GitHub Pages
+// serves (with status 404) for every address that has no file. All links are absolute,
+// because this page is shown at whatever address was mistyped.
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import { getSite } from '../lib/texts';
+
+const { notFound: t } = await getSite();
+---
+
+<BaseLayout title={t.metaTitle} description={t.lead}>
+  <meta slot="head" name="robots" content="noindex" />
+  <PageHeader eyebrow={t.eyebrow} title={t.title} lead={t.lead} />
+  <main id="main" tabindex="-1">
+    <div class="wrap nf">
+      <div class="cta-row">
+        <a class="btn" href="/">{t.home}</a>
+        <a class="btn btn-ghost" href="/horses/">{t.horses}</a>
+      </div>
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .nf { padding-block: 0.5rem 5rem; }
+</style>

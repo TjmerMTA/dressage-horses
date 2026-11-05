@@ -20,8 +20,8 @@ photos:
   - ../../assets/horses/horse-black-autumn-fence.jpg
   - ../../assets/horses/horse-black-gentle-touch.jpg
 photoAlt:
-  - Young woman in a red jacket gently strokes a black horse's face beside an autumn fence
-  - Woman in a red jacket touches the muzzle of a black horse among autumn trees
+  - Black horse lowering its head to be stroked by a young woman in a red jacket, autumn fence behind
+  - Black horse among autumn trees, a woman in a red jacket resting her hand under its muzzle
 listed: 2026-10-21
 featured: true
 ---

@@ -33,6 +33,7 @@ const data = {
   })),
   count: f.count,
   countOne: f.countOne,
+  priceError: f.priceError,
 };
 const json = JSON.stringify(data).replace(/</g, '\\u003c');
 const countText = horses.length === 1 ? f.countOne : f.count.replace('{count}', String(horses.length));
@@ -123,6 +124,7 @@ const firstPhoto = horses[0]?.data.photos[0];
               <option value="">{f.any}</option>
               {t.priceSteps.map((v) => <option value={v}>{formatAmount(v)}</option>)}
             </select></span>
+            <p class="f-err" id="f-price-err" aria-live="polite"></p>
           </div>
           <div class="f-field">
             <label for="f-sort">{f.sort}</label>
@@ -167,7 +169,7 @@ const firstPhoto = horses[0]?.data.photos[0];
 
 <script>
   type Item = { slug: string; sex: string; country: string; level: string; price: number | null; sold: boolean };
-  type Data = { horses: Item[]; count: string; countOne: string };
+  type Data = { horses: Item[]; count: string; countOne: string; priceError: string };
 
   const dataEl = document.getElementById('cat-data');
   const form = document.getElementById('filters') as HTMLFormElement | null;
@@ -177,6 +179,7 @@ const firstPhoto = horses[0]?.data.photos[0];
   if (D && form && grid) {
     const empty = document.getElementById('empty') as HTMLElement;
     const count = document.getElementById('f-count') as HTMLElement;
+    const priceErr = document.getElementById('f-price-err') as HTMLElement;
     const KEYS = ['sex', 'country', 'level', 'min', 'max', 'sort'] as const;
     const field = (k: (typeof KEYS)[number]) => form.elements.namedItem(k) as HTMLSelectElement;
     // Cards in their build-time order ("newest", sold last), keyed by slug.
@@ -188,6 +191,15 @@ const firstPhoto = horses[0]?.data.photos[0];
       const v = Object.fromEntries(KEYS.map((k) => [k, field(k).value])) as Record<(typeof KEYS)[number], string>;
       const min = v.min ? Number(v.min) : null;
       const max = v.max ? Number(v.max) : null;
+      // A minimum above the maximum can match nothing; say so next to the two prices
+      // instead of only showing "0 horses".
+      const badRange = min !== null && max !== null && min > max;
+      priceErr.textContent = badRange ? D.priceError : '';
+      (['min', 'max'] as const).forEach((k) => {
+        const sel = field(k);
+        if (badRange) { sel.setAttribute('aria-invalid', 'true'); sel.setAttribute('aria-describedby', 'f-price-err'); }
+        else { sel.removeAttribute('aria-invalid'); sel.removeAttribute('aria-describedby'); }
+      });
       const shown = D.horses.filter((h) => {
         if (v.sex && h.sex !== v.sex) return false;
         if (v.country && h.country !== v.country) return false;
@@ -257,6 +269,8 @@ const firstPhoto = horses[0]?.data.photos[0];
   .f-select select { appearance: none; -webkit-appearance: none; width: 100%; min-height: 3.1rem; padding-block: 0.6rem; padding-inline: 1rem 2.4rem; border: 2px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); font: 1rem var(--sans); cursor: pointer; }
   .f-select select:hover { border-color: var(--line-strong); }
   .f-select select:focus-visible { border-color: var(--accent); }
+  .f-select select[aria-invalid="true"] { border-color: var(--err); }
+  .f-err { margin-block-start: 0.35rem; font-size: 0.88rem; color: var(--err); }
   .f-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.8rem 1.2rem; }
   .f-count { font-weight: 700; color: var(--accent-text); }
 

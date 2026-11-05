@@ -38,12 +38,17 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
     </div>
     <div class="quiz" id="quiz-box">
       <div id="quiz-flow">
-        <div class="prog" aria-hidden="true">
+        <div class="prog" id="prog" aria-hidden="true" hidden>
           <span id="prog-label">{firstLabel}</span>
           <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
         </div>
+        {/* Shown while the page is parsed, so it costs no layout shift. Without JavaScript
+            there are no steps, so "Step 1 of 4" stays hidden and the box says what it is. */}
+        <script is:inline>document.getElementById('prog').hidden = false;</script>
         <p class="q-horse" id="q-horse" hidden></p>
-        <div id="steps" aria-live="polite"></div>
+        <div id="steps" aria-live="polite">
+          <noscript><p class="q-nojs">{quiz.noScript} <a href="/contact/">{quiz.noScriptLink}</a></p></noscript>
+        </div>
         <div class="q-nav"><button type="button" class="link-btn" id="back" hidden>{quiz.back}</button></div>
       </div>
       <div class="thanks" id="thanks" hidden>
@@ -102,18 +107,27 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       return e;
     };
 
+    // An invalid field is marked on the field itself (aria-invalid, red border) and points
+    // at its own message through aria-describedby, set when the field is built.
+    const isInvalid = (input: HTMLInputElement) => input.getAttribute('aria-invalid') === 'true';
+    const setFieldError = (input: HTMLInputElement, msg: HTMLElement, text: string) => {
+      msg.textContent = text;
+      if (text) input.setAttribute('aria-invalid', 'true');
+      else input.removeAttribute('aria-invalid');
+    };
+
     const setProgress = () => {
       label.textContent = Q.stepLabel.replace('{step}', String(step + 1)).replace('{total}', String(TOTAL));
       fill.style.width = ((step + 1) / TOTAL) * 100 + '%';
       backBtn.hidden = step === 0;
     };
 
-    const renderOptionStep = (i: number) => {
+    const renderOptionStep = (i: number, probe = false) => {
       const s = STEPS[i];
       const wrap = el('div');
       const h = el('h3', 'q-title', s.title);
       h.tabIndex = -1;
-      h.id = 'q-title';
+      if (!probe) h.id = 'q-title';
       wrap.appendChild(h);
       const grid = el('div', 'opts');
       s.options.forEach((opt) => {
@@ -143,18 +157,21 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       const f1 = el('div', 'field');
       const l1 = el('label', '', Q.nameLabel); l1.htmlFor = 'f-name';
       const i1 = el('input'); i1.type = 'text'; i1.id = 'f-name'; i1.name = 'name'; i1.autocomplete = 'name'; i1.value = answers.name;
+      i1.setAttribute('aria-describedby', 'e-name');
       const e1 = el('div', 'err'); e1.id = 'e-name';
       f1.append(l1, i1, e1);
 
       const f2 = el('div', 'field');
       const l2 = el('label', '', Q.whatsappLabel); l2.htmlFor = 'f-wa';
       const i2 = el('input'); i2.type = 'tel'; i2.id = 'f-wa'; i2.name = 'whatsapp'; i2.autocomplete = 'tel'; i2.inputMode = 'tel'; i2.placeholder = Q.whatsappPlaceholder; i2.value = answers.whatsapp;
-      const hint = el('div', 'hint', Q.whatsappHint);
+      i2.setAttribute('aria-describedby', 'h-wa e-wa');
+      const hint = el('div', 'hint', Q.whatsappHint); hint.id = 'h-wa';
       const e2 = el('div', 'err'); e2.id = 'e-wa';
       f2.append(l2, i2, hint, e2);
 
       const c = el('label', 'consent');
       const cb = el('input'); cb.type = 'checkbox'; cb.id = 'f-consent';
+      cb.setAttribute('aria-describedby', 'e-consent');
       const ct = el('span', '', Q.consent);
       c.append(cb, ct);
       const e3 = el('div', 'err'); e3.id = 'e-consent';
@@ -169,17 +186,23 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       actions.appendChild(submit);
 
       form.append(f1, f2, c, e3, trap, actions);
+      const nameOk = () => i1.value.trim().length >= 2;
+      const waOk = () => { const n = i2.value.replace(/\D/g, '').length; return n >= 7 && n <= 15; };
+      // A message disappears as soon as its field becomes valid, not at the next submit.
+      // New messages appear only on submit, never while the visitor is still typing.
+      i1.addEventListener('input', () => { if (isInvalid(i1) && nameOk()) setFieldError(i1, e1, ''); });
+      i2.addEventListener('input', () => { if (isInvalid(i2) && waOk()) setFieldError(i2, e2, ''); });
+      cb.addEventListener('change', () => { if (isInvalid(cb) && cb.checked) setFieldError(cb, e3, ''); });
       form.addEventListener('submit', (ev) => {
         ev.preventDefault();
-        let ok = true;
+        e3.textContent = ''; // may hold a "sending failed" message from an earlier attempt
+        setFieldError(i1, e1, nameOk() ? '' : Q.errors.name);
+        setFieldError(i2, e2, waOk() ? '' : Q.errors.whatsapp);
+        setFieldError(cb, e3, cb.checked ? '' : Q.errors.consent);
+        const firstBad = [i1, i2, cb].find(isInvalid);
+        if (firstBad) { firstBad.focus(); return; }
         const name = i1.value.trim();
         const wa = i2.value.trim();
-        const digits = wa.replace(/\D/g, '');
-        e1.textContent = ''; e2.textContent = ''; e3.textContent = '';
-        if (name.length < 2) { e1.textContent = Q.errors.name; ok = false; }
-        if (digits.length < 7 || digits.length > 15) { e2.textContent = Q.errors.whatsapp; ok = false; }
-        if (!cb.checked) { e3.textContent = Q.errors.consent; ok = false; }
-        if (!ok) { (name.length < 2 ? i1 : digits.length < 7 || digits.length > 15 ? i2 : cb).focus(); return; }
         answers.name = name;
         answers.whatsapp = wa;
         send(submit, trapInput.value, { name: e1, whatsapp: e2, other: e3 }, { name: i1, whatsapp: i2 });
@@ -188,12 +211,43 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       return wrap;
     };
 
+    // Keeps the box from changing height between the three answer steps (they have
+    // different numbers of answers): #steps is as tall as the tallest of them, measured in
+    // an invisible copy at the current width. The contact step is taller still; the
+    // change to and from it is animated instead of jumping.
+    const flow = document.getElementById('quiz-flow') as HTMLElement;
+    const measurer = el('div', 'q-measure');
+    measurer.setAttribute('aria-hidden', 'true');
+    measurer.inert = true;
+    flow.appendChild(measurer);
+    const measure = () => {
+      let tallest = 0;
+      STEPS.forEach((_, i) => {
+        measurer.replaceChildren(renderOptionStep(i, true));
+        tallest = Math.max(tallest, measurer.getBoundingClientRect().height);
+      });
+      measurer.replaceChildren();
+      stepsEl.style.minHeight = tallest ? Math.ceil(tallest) + 'px' : '';
+    };
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    const animateFrom = (from: number) => {
+      const to = stepsEl.offsetHeight;
+      if (reducedMotion.matches || Math.abs(from - to) < 2 || typeof stepsEl.animate !== 'function') return;
+      stepsEl.style.overflow = 'hidden';
+      const a = stepsEl.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: 260, easing: 'ease-out' });
+      const done = () => { stepsEl.style.overflow = ''; };
+      a.onfinish = done;
+      a.oncancel = done;
+    };
+
     // `focus` is false only for the very first render on page load, so the page does not
     // jump keyboard / screen-reader focus into the quiz before the visitor reaches it.
     const go = (n: number, focus = true) => {
+      const from = stepsEl.offsetHeight;
       step = Math.max(0, Math.min(TOTAL - 1, n));
       stepsEl.replaceChildren(step < 3 ? renderOptionStep(step) : renderContactStep());
       setProgress();
+      if (focus) animateFrom(from);
       const t = document.getElementById('q-title');
       if (t && focus) t.focus({ preventScroll: true });
     };
@@ -227,8 +281,8 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       }
       btn.disabled = false;
       btn.textContent = Q.submit;
-      if (result.field === 'name') { errs.name.textContent = Q.errors.name; inputs.name.focus(); }
-      else if (result.field === 'contact') { errs.whatsapp.textContent = Q.errors.whatsapp; inputs.whatsapp.focus(); }
+      if (result.field === 'name') { setFieldError(inputs.name, errs.name, Q.errors.name); inputs.name.focus(); }
+      else if (result.field === 'contact') { setFieldError(inputs.whatsapp, errs.whatsapp, Q.errors.whatsapp); inputs.whatsapp.focus(); }
       else errs.other.textContent = result.reason === 'rate-limited' || result.reason === 'network' ? result.message : Q.errors.send;
     };
     const showThanks = () => {
@@ -267,9 +321,24 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       noteEl.hidden = false;
       return hash.startsWith('#quiz?');
     };
-    const jump = () => (document.getElementById('quiz') as HTMLElement).scrollIntoView();
+    // Scroll and keyboard focus go together: the next Tab lands on the first answer, and a
+    // screen reader reads the step question followed by "Your enquiry is about <horse>".
+    const jump = () => {
+      (document.getElementById('quiz') as HTMLElement).scrollIntoView();
+      const t = document.getElementById('q-title');
+      if (!t) return;
+      t.setAttribute('aria-describedby', 'q-horse');
+      t.focus({ preventScroll: true });
+    };
 
     go(0, false);
+    measure();
+    let measuredWidth = stepsEl.clientWidth;
+    new ResizeObserver(() => {
+      if (stepsEl.clientWidth === measuredWidth) return; // own height changes are not a reason
+      measuredWidth = stepsEl.clientWidth;
+      measure();
+    }).observe(stepsEl);
     if (readHorse()) requestAnimationFrame(jump);
     window.addEventListener('hashchange', () => {
       if (readHorse()) { if (step !== 0) go(0); jump(); }
@@ -284,6 +353,10 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
   .quiz-head { text-align: center; max-width: 40rem; margin-block: 0 2rem; margin-inline: auto; }
   .quiz-head h2 { font-size: clamp(1.7rem, 4vw, 2.5rem); }
   .quiz-head p { margin-block-start: 0.8rem; color: var(--muted); }
+  #quiz-flow { position: relative; }
+  .q-measure { position: absolute; inset-inline: 0; inset-block-start: 0; visibility: hidden; pointer-events: none; }
+  .q-nojs { color: var(--muted); }
+  .q-nojs a { color: var(--accent-text); font-weight: 600; text-underline-offset: 3px; }
   .quiz { max-width: 44rem; margin-inline: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: clamp(1.3rem, 4vw, 2.4rem); box-shadow: 0 10px 40px rgba(41,19,5,.08); }
   .prog { display: flex; align-items: center; gap: 1rem; margin-block-end: 1.6rem; font-size: 0.85rem; color: var(--muted); }
   .prog-track { flex: 1; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
@@ -304,10 +377,12 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
   .field label { display: block; font-weight: 600; margin-block-end: 0.4rem; font-size: 0.95rem; }
   .field input[type="text"], .field input[type="tel"] { width: 100%; min-height: 3.3rem; padding: 0.7rem 1rem; border: 2px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); font: 1.05rem var(--sans); }
   .field input:focus { border-color: var(--accent); outline: none; }
+  .field input[aria-invalid="true"], .field input[aria-invalid="true"]:focus { border-color: var(--err); }
   .hint { font-size: 0.85rem; color: var(--muted); margin-block-start: 0.35rem; }
   .err { font-size: 0.88rem; color: var(--err); margin-block-start: 0.35rem; min-height: 1.2em; }
   .consent { display: grid; grid-template-columns: 1.4rem 1fr; gap: 0.7rem; align-items: start; font-size: 0.88rem; color: var(--muted); }
   .consent input { width: 1.25rem; height: 1.25rem; margin-block: 0.15rem 0; margin-inline: 0; accent-color: var(--accent); }
+  .consent input[aria-invalid="true"] { outline: 2px solid var(--err); outline-offset: 2px; }
   .form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-block-start: 0.4rem; }
   .thanks { text-align: center; padding-block: 1rem 0.4rem; padding-inline: 0; }
   .thanks h3 { font-size: 1.8rem; margin-block-end: 0.8rem; }
