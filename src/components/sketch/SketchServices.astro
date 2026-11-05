@@ -1,0 +1,70 @@
+---
+// SKETCH ONLY (/sketch/photos/). A copy of src/components/Services.astro, which stays
+// untouched (a copy, not an import: see SketchHowItWorks.astro for why). Without `photos`
+// it renders exactly like the live section (Variant A's context); with `photos` each of
+// the four cards gets a photograph across its top (Variant B). Same texts, same white
+// bordered cards; the gold number circle overlaps the photograph's lower edge, cut out of
+// it by a ring of the card's own white.
+import { Picture } from 'astro:assets';
+import { getHome } from '../../lib/texts';
+import { servicePhotos } from './photos';
+
+interface Props {
+  /** The heading's id; each copy on the page needs its own. */
+  id: string;
+  photos?: boolean;
+}
+
+const { id, photos = false } = Astro.props;
+const { services } = await getHome();
+
+// The photograph is as wide as the card: one column below 520 px, two above, the row
+// capped by .wrap at 1120 px.
+const sizes = '(max-width: 519px) calc(100vw - 2.5rem), (max-width: 1159px) calc(50vw - 1.25rem), 543px';
+---
+
+<section class="services" aria-labelledby={id}>
+  <div class="wrap">
+    <div class="eyebrow">{services.eyebrow}</div>
+    <h2 id={id}>{services.title}</h2>
+    <div class="svc">
+      {services.items.map((item, i) => {
+        const p = photos ? servicePhotos[i] : undefined;
+        return (
+          <article class="card">
+            {p && (
+              <div class="card-photo" style={`--focus: ${p.focus}`}>
+                <Picture
+                  src={p.src}
+                  alt={p.alt}
+                  formats={['avif', 'webp']}
+                  fallbackFormat="jpg"
+                  widths={[320, 480, 640, 960, 1280]}
+                  sizes={sizes}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+            )}
+            <div class="no">{i + 1}</div><h3>{item.title}</h3><p>{item.text}</p>
+          </article>
+        );
+      })}
+    </div>
+  </div>
+</section>
+
+<style>
+  /* the live component's rules, unchanged */
+  .services { padding: 5rem 0; }
+  .services h2 { font-size: clamp(1.7rem, 4vw, 2.5rem); max-width: 34rem; }
+  .svc { display: grid; gap: clamp(1.2rem, 3.2vw, 2.2rem); margin-block-start: 2.6rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 519px) { .svc { grid-template-columns: 1fr; } }
+
+  /* Variant B: the photograph across the top of the card, edge to edge */
+  .card:has(.card-photo) { --pad: clamp(1.4rem, 3vw, 2.2rem); padding: var(--pad); overflow: hidden; }
+  .card-photo { margin-block: calc(-1 * var(--pad)) 0; margin-inline: calc(-1 * var(--pad)); aspect-ratio: 3 / 2; background: var(--line); }
+  .card-photo :global(picture) { display: contents; }
+  .card-photo :global(img) { display: block; width: 100%; height: 100%; object-fit: cover; object-position: var(--focus, center); }
+  .card-photo + .no { position: relative; margin-block-start: -1.3rem; box-shadow: 0 0 0 4px var(--surface); }
+</style>

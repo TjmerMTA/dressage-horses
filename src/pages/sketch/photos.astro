@@ -1,0 +1,63 @@
+---
+// SKETCH FOR A DECISION — not part of the live site. Linked from nowhere, noindex/nofollow,
+// left out of the sitemap (astro.config.mjs). It shows two ways the client's photographs
+// could live on the one-page site, rendered with the site's own styles and components:
+//   Variant A — a new photo band between "How it works" and "Services".
+//   Variant B — no new block: a photograph in each step and each service card.
+// The live page (src/pages/index.astro) and its components are not touched, and not
+// imported here either: importing them would make Astro move their CSS into a shared chunk
+// and change the live page's HTML. Both variants use copies in src/components/sketch/.
+// The cost lines were measured, not estimated: see the commit that added them for the method.
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import PhotoBand from '../../components/sketch/PhotoBand.astro';
+import SketchHowItWorks from '../../components/sketch/SketchHowItWorks.astro';
+import SketchServices from '../../components/sketch/SketchServices.astro';
+
+// Measured 5 Nov 2026 in Chrome 156 as a 390 px phone at 3x, cache off, every byte the
+// page requests after scrolling to the bottom (and swiping the band to its end): images at
+// file size, HTML/CSS/JS gzipped. "Before" is today's live home page; "after" is the same
+// page with the variant in place.
+const costA = 'Cost: 10 more photographs on the page (12 instead of 2). On a 390 px phone scrolled to the end, the page grows from 209 KB to 669 KB (+460 KB, 3.2x), none of it before the visitor scrolls; the largest image stays the 115 KB hero (the band\'s largest is 77 KB).';
+const costB = 'Cost: 8 more photographs on the page (10 instead of 2). On a 390 px phone scrolled to the end, the page grows from 209 KB to 475 KB (+266 KB, 2.3x), 43 KB of it on load (the first three step photographs); the largest image stays the 115 KB hero (the largest new one is 86 KB).';
+---
+
+<BaseLayout
+  title="Sketch: two ways to use more of the photographs"
+  description="A sketch for a decision, not the live site."
+>
+  <meta slot="head" name="robots" content="noindex, nofollow" />
+  <PageHeader
+    eyebrow="Sketch · not live"
+    title="Two ways to use more of the photographs"
+    lead="This is a sketch for a decision, made on 5 November 2026: it is not the live site, and nothing on this page is published there."
+  />
+  <main id="main" tabindex="-1">
+    <div class="variant-note" aria-labelledby="var-a-h" role="note">
+      <div class="wrap">
+        <div class="eyebrow">Variant A</div>
+        <h2 id="var-a-h">A photo band between “How it works” and “Services”</h2>
+        <p class="cost">{costA}</p>
+      </div>
+    </div>
+    <SketchHowItWorks id="how-h-a" />
+    <PhotoBand />
+    <SketchServices id="svc-h-a" />
+
+    <div class="variant-note" aria-labelledby="var-b-h" role="note">
+      <div class="wrap">
+        <div class="eyebrow">Variant B</div>
+        <h2 id="var-b-h">A photograph in each step and each service card, no new block</h2>
+        <p class="cost">{costB}</p>
+      </div>
+    </div>
+    <SketchHowItWorks id="how-h-b" photos />
+    <SketchServices id="svc-h-b" photos />
+  </main>
+</BaseLayout>
+
+<style>
+  .variant-note { background: var(--accent-soft); border-block: 1px solid var(--line-strong); padding-block: clamp(2rem, 5vw, 3rem); }
+  .variant-note h2 { font-size: clamp(1.5rem, 3.4vw, 2.1rem); max-width: 40rem; }
+  .variant-note .cost { margin-block-start: 0.8rem; max-width: 46rem; color: var(--muted); }
+</style>
