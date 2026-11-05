@@ -3,10 +3,19 @@
 // come from home.json and the links/endpoint from site.json, handed to the script as
 // JSON so the (bundled, deferred) script itself contains no copy.
 import { getHome, getSite } from '../lib/texts';
+import { getLegalFacts } from '../lib/legal';
 import { whatsappHref } from '../scripts/site-values.js';
 
 const { quiz } = await getHome();
 const site = await getSite();
+// Without JavaScript the quiz cannot be sent, so the fallback line must name a route
+// that really exists today — never "the contact details in the imprint", which are empty.
+const legal = await getLegalFacts();
+const noJs = legal.whatsapp
+  ? { href: legal.whatsapp, label: quiz.noScriptLink }
+  : legal.email
+    ? { href: `mailto:${legal.email}`, label: quiz.noScriptEmail }
+    : null;
 
 const data = {
   ...quiz,
@@ -36,7 +45,7 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
             there are no steps, so "Step 1 of 4" stays hidden and the box says what it is. */}
         <script is:inline>document.getElementById('prog').hidden = false;</script>
         <div id="steps" aria-live="polite">
-          <noscript><p class="q-nojs">{quiz.noScript} <a href="/imprint/">{quiz.noScriptLink}</a></p></noscript>
+          <noscript><p class="q-nojs">{quiz.noScript} {noJs ? <a href={noJs.href}>{noJs.label}</a> : quiz.noScriptNone}</p></noscript>
         </div>
         <div class="q-nav"><button type="button" class="link-btn" id="back" hidden>{quiz.back}</button></div>
       </div>

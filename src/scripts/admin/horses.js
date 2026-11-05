@@ -107,13 +107,13 @@ export async function renderHorses(root) {
         h("a", { class: "btn btn-ghost btn-sm", href: `#/horses/duplicate/${encodeURIComponent(x.slug)}` }, "Duplicate"),
         h("button", { type: "button", class: "btn btn-ghost btn-sm", onclick: async () => {
           const ok = await confirmDialog(isSold
-            ? { title: `Mark “${name}” as available again?`, body: "The “Sold” ribbon disappears from the site.", confirmLabel: "Mark as available" }
-            : { title: `Mark “${name}” as sold?`, body: "It stays on the site with a “Sold” ribbon, at the end of the list.", confirmLabel: "Mark as sold" });
+            ? { title: `Mark “${name}” as available again?`, body: "The “Sold” mark is removed from this horse.", confirmLabel: "Mark as available" }
+            : { title: `Mark “${name}” as sold?`, body: "It stays in the catalogue, marked as sold.", confirmLabel: "Mark as sold" });
           if (ok) save(x, { sold: !isSold }, `Admin: mark “${name}” as ${isSold ? "available" : "sold"}`, isSold ? `“${name}” is available again.` : `“${name}” is marked as sold.`);
         } }, isSold ? "Mark available" : "Mark sold"),
         h("button", { type: "button", class: "btn btn-ghost btn-sm", onclick: async () => {
           if (isPub) {
-            const ok = await confirmDialog({ title: `Hide “${name}” from the website?`, body: "Its page and its card disappear from the site. You can publish it again at any time.", confirmLabel: "Hide it", danger: true });
+            const ok = await confirmDialog({ title: `Hide “${name}”?`, body: "It is hidden from the catalogue. You can publish it again at any time.", confirmLabel: "Hide it", danger: true });
             if (!ok) return;
           } else if (!(Array.isArray(x.v.photos) && x.v.photos.length)) {
             toast("Add at least one photo before publishing (Edit → Photos).", "err");

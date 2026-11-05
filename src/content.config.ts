@@ -90,6 +90,8 @@ const home = defineCollection({
         // Shown in the quiz box when JavaScript is off (the quiz is built by a script).
         noScript: z.string(),
         noScriptLink: z.string(),
+        noScriptEmail: z.string(),
+        noScriptNone: z.string(),
       }),
       how: z.object({
         eyebrow: z.string(),

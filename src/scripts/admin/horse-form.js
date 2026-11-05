@@ -61,7 +61,7 @@ export async function renderHorseForm(root, { mode, slug }) {
   const extras = doc.fields.filter((f) => f.key && !HORSE_KEYS.includes(f.key)).map((f) => f.key);
 
   if (mode === "duplicate") {
-    // A copy is a new, real horse: not a sample, not on the site yet, listed today.
+    // A copy is a new, real horse: not a sample, not published yet, listed today.
     doc = { fields: doc.fields.filter((f) => f.key && !HORSE_KEYS.includes(f.key) && f.key !== "sample"), body: doc.body, hadFrontMatter: true };
     v = { ...v, name: `${v.name || "Horse"} (copy)`, published: false, sold: false, featured: false, listed: undefined };
   }
@@ -94,7 +94,7 @@ export async function renderHorseForm(root, { mode, slug }) {
   mk("dam", "Dam (mother)", h("input", { type: "text", value: v.dam || "", autocomplete: "off", maxlength: 80 }));
   mk("damsire", "Damsire (mother’s father)", h("input", { type: "text", value: v.damsire || "", autocomplete: "off", maxlength: 80 }));
   mk("listed", "On sale since", h("input", { type: "date", value: /^\d{4}-\d{2}-\d{2}$/.test(String(v.listed || "")) ? String(v.listed) : (mode === "edit" ? "" : today), max: today }),
-    "Used for the “Newest” sort on the site.");
+    "Used to sort the catalogue by newest.");
   mk("video", "Video link (optional)", h("input", { type: "url", value: v.video || "", autocomplete: "off", placeholder: "https://www.youtube.com/watch?v=…" }), "A YouTube or Vimeo address.");
   mk("description", "Description", h("textarea", { rows: 9, maxlength: 10000 }, description),
     "Shown on the horse’s page. Empty line = new paragraph. **bold** for bold.");
@@ -243,9 +243,9 @@ export async function renderHorseForm(root, { mode, slug }) {
     unsupported.length ? h("p", { class: "adm-warn" }, `This file has ${unsupported.join(", ")} written in a way the panel can't edit safely, so saving is switched off. Change it on GitHub: `,
       h("a", { href: `${REPO_URL}/blob/main/${HORSES_DIR}/${slug}.md`, target: "_blank", rel: "noopener" }, "open the file")) : null,
     section("Basics", grid(F.name.wrap, F.slug.wrap, F.listed.wrap),
-      check(published, "Published", "Visible on the website."),
-      check(featured, "Featured", "Shown in the “featured horses” strip on the home page."),
-      check(sold, "Sold", "Stays on the site with a “Sold” ribbon.")),
+      check(published, "Published", "Published, rather than a draft."),
+      check(featured, "Featured", "Marked as a featured horse."),
+      check(sold, "Sold", "Stays in the catalogue, marked as sold.")),
     section("Price", check(onRequest, "Price on request", "No price is shown; visitors are asked to enquire."), F.price.wrap),
     section("The horse", grid(F.year.wrap, F.height.wrap, F.sex.wrap, F.colour.wrap, F.breed.wrap, F.country.wrap, F.level.wrap, F.xrays.wrap)),
     section("Pedigree", grid(F.sire.wrap, F.dam.wrap, F.damsire.wrap)),

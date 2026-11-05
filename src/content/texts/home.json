@@ -104,7 +104,9 @@
     },
     "whatsappNow": "Write on WhatsApp now",
     "noScript": "This quiz needs JavaScript, which is switched off in your browser.",
-    "noScriptLink": "The company’s contact details are in the imprint"
+    "noScriptLink": "Write to us on WhatsApp",
+    "noScriptEmail": "Write to us by e-mail",
+    "noScriptNone": "Please switch JavaScript on to send us your request — it is the only way to reach us at the moment."
   },
   "how": {
     "eyebrow": "Process",
