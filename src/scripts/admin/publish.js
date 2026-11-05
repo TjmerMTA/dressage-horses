@@ -149,7 +149,7 @@ function render() {
   let content;
   if (latest.state === "published") {
     if (Date.now() - (latest.doneAt || 0) > 60_000) { bar.hidden = true; return; }
-    content = [h("span", { class: "adm-dot ok", "aria-hidden": "true" }), h("span", {}, `Published — “${latest.label}” is live on the site. `),
+    content = [h("span", { class: "adm-dot ok", "aria-hidden": "true" }), h("span", {}, `Published — “${latest.label}” is saved and the site has been rebuilt. `),
       h("a", { href: "/", target: "_blank", rel: "noopener" }, "View site"), dismiss];
     bar.dataset.state = "ok";
   } else if (latest.state === "failed") {

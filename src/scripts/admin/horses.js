@@ -108,12 +108,12 @@ export async function renderHorses(root) {
         h("button", { type: "button", class: "btn btn-ghost btn-sm", onclick: async () => {
           const ok = await confirmDialog(isSold
             ? { title: `Mark “${name}” as available again?`, body: "The “Sold” mark is removed from this horse.", confirmLabel: "Mark as available" }
-            : { title: `Mark “${name}” as sold?`, body: "It stays in the catalogue, marked as sold.", confirmLabel: "Mark as sold" });
+            : { title: `Mark “${name}” as sold?`, body: "It stays in the list, marked as sold.", confirmLabel: "Mark as sold" });
           if (ok) save(x, { sold: !isSold }, `Admin: mark “${name}” as ${isSold ? "available" : "sold"}`, isSold ? `“${name}” is available again.` : `“${name}” is marked as sold.`);
         } }, isSold ? "Mark available" : "Mark sold"),
         h("button", { type: "button", class: "btn btn-ghost btn-sm", onclick: async () => {
           if (isPub) {
-            const ok = await confirmDialog({ title: `Hide “${name}”?`, body: "It is hidden from the catalogue. You can publish it again at any time.", confirmLabel: "Hide it", danger: true });
+            const ok = await confirmDialog({ title: `Hide “${name}”?`, body: "It is hidden from the list. You can publish it again at any time.", confirmLabel: "Hide it", danger: true });
             if (!ok) return;
           } else if (!(Array.isArray(x.v.photos) && x.v.photos.length)) {
             toast("Add at least one photo before publishing (Edit → Photos).", "err");
@@ -124,7 +124,7 @@ export async function renderHorses(root) {
         h("button", { type: "button", class: "btn btn-ghost btn-sm adm-danger-text", onclick: async () => {
           const first = await confirmDialog({
             title: `Delete “${name}”?`,
-            body: ["The horse and its page disappear from the website for good.", "If you only want to take it off the site for now, use “Unpublish” instead."],
+            body: ["The horse and its details are deleted for good. Its photographs stay in the photo library.", "If you only want to take it out of the list for now, use “Unpublish” instead."],
             confirmLabel: "Delete…", danger: true,
           });
           if (!first) return;
@@ -147,7 +147,7 @@ export async function renderHorses(root) {
   };
 
   const table = h("table", { class: "adm-table adm-horses" },
-    h("caption", { class: "sr-only" }, "All horses in the catalogue"),
+    h("caption", { class: "sr-only" }, "All horses in the list"),
     h("thead", {}, h("tr", {}, ["Photo", "Name", "Price", "Status", "Actions"].map((c) => h("th", { scope: "col" }, c)))),
     body);
   const empty = h("p", { class: "adm-empty" }, "No horses yet. Press “Add a horse” to create the first one.");

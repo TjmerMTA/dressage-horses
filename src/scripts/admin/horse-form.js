@@ -94,10 +94,10 @@ export async function renderHorseForm(root, { mode, slug }) {
   mk("dam", "Dam (mother)", h("input", { type: "text", value: v.dam || "", autocomplete: "off", maxlength: 80 }));
   mk("damsire", "Damsire (mother’s father)", h("input", { type: "text", value: v.damsire || "", autocomplete: "off", maxlength: 80 }));
   mk("listed", "On sale since", h("input", { type: "date", value: /^\d{4}-\d{2}-\d{2}$/.test(String(v.listed || "")) ? String(v.listed) : (mode === "edit" ? "" : today), max: today }),
-    "Used to sort the catalogue by newest.");
+    "Used to sort the list by newest.");
   mk("video", "Video link (optional)", h("input", { type: "url", value: v.video || "", autocomplete: "off", placeholder: "https://www.youtube.com/watch?v=…" }), "A YouTube or Vimeo address.");
   mk("description", "Description", h("textarea", { rows: 9, maxlength: 10000 }, description),
-    "Shown on the horse’s page. Empty line = new paragraph. **bold** for bold.");
+    "The horse’s description. Empty line = new paragraph. **bold** for bold.");
   const published = h("input", { type: "checkbox", id: nextId(), checked: v.published !== false });
   const featured = h("input", { type: "checkbox", id: nextId(), checked: v.featured === true });
   const sold = h("input", { type: "checkbox", id: nextId(), checked: v.sold === true });
@@ -245,8 +245,8 @@ export async function renderHorseForm(root, { mode, slug }) {
     section("Basics", grid(F.name.wrap, F.slug.wrap, F.listed.wrap),
       check(published, "Published", "Published, rather than a draft."),
       check(featured, "Featured", "Marked as a featured horse."),
-      check(sold, "Sold", "Stays in the catalogue, marked as sold.")),
-    section("Price", check(onRequest, "Price on request", "No price is shown; visitors are asked to enquire."), F.price.wrap),
+      check(sold, "Sold", "Stays in the list, marked as sold.")),
+    section("Price", check(onRequest, "Price on request", "No price is recorded; the horse is marked “on request”."), F.price.wrap),
     section("The horse", grid(F.year.wrap, F.height.wrap, F.sex.wrap, F.colour.wrap, F.breed.wrap, F.country.wrap, F.level.wrap, F.xrays.wrap)),
     section("Pedigree", grid(F.sire.wrap, F.dam.wrap, F.damsire.wrap)),
     section("Photos", drop, photoList, photoErr, live),
@@ -310,7 +310,7 @@ export async function renderHorseForm(root, { mode, slug }) {
       const input = photoList.querySelector(`[data-alt="${p.id}"]`);
       if (!String(p.alt || "").trim() && input) {
         input.setAttribute("aria-invalid", "true");
-        errs.push([input, `Describe photo ${i + 1} in a few words — blind visitors and Google rely on it.`]);
+        errs.push([input, `Describe photo ${i + 1} in a few words — needed for blind visitors and for search engines.`]);
       }
     });
     const listed = F.listed.input.value;
