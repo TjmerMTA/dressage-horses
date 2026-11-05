@@ -3,7 +3,7 @@
 // real hero photograph as a <picture> (AVIF, WebP, JPEG). It is the LCP element:
 // eager, fetchpriority high, and sizes matching the box it covers.
 import { Picture } from 'astro:assets';
-import SiteNav from './SiteNav.astro';
+import SiteTop from './SiteTop.astro';
 import { getHome } from '../lib/texts';
 
 const { hero } = await getHome();
@@ -24,7 +24,7 @@ const { hero } = await getHome();
     />
   </div>
   <div class="wrap">
-    <SiteNav />
+    <SiteTop />
     <div class="hero-main">
       <div class="eyebrow">{hero.eyebrow}</div>
       <h1>{hero.title}</h1>

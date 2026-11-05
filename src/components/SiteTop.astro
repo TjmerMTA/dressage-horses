@@ -1,0 +1,26 @@
+---
+// The mock-up's top bar: the logo and nothing else (one page, no navigation). On the
+// home page it is a plain image, as in the mock-up; on the privacy policy, the imprint
+// and the 404 page it links back to the home page.
+import { Image } from 'astro:assets';
+import { getSite } from '../lib/texts';
+import { displayName } from '../scripts/site-values.js';
+
+const site = await getSite();
+const isHome = Astro.url.pathname === '/';
+---
+
+<div class="top">
+  {isHome ? (
+    <Image class="logo" src={site.logo} alt={displayName(site)} width={52} height={52} densities={[1, 2]} loading="eager" />
+  ) : (
+    <a class="home-link" href="/">
+      <Image class="logo" src={site.logo} alt={site.logoAlt} width={52} height={52} densities={[1, 2]} loading="eager" />
+    </a>
+  )}
+</div>
+
+<style>
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 1.2rem 0; }
+  .home-link { display: block; border-radius: 12px; }
+</style>

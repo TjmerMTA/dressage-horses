@@ -5,21 +5,22 @@ Netherlands for buyers all over the world. Built with [Astro 7](https://astro.bu
 fully static site and published on GitHub Pages at **https://dev.siteboosty.com**.
 
 The design comes from the client's mock-up,
-`project-notes/sketches/mockup-original.html`. The home page is that mock-up rebuilt as
-components, and the inner pages reuse its styles.
+`project-notes/sketches/mockup-original.html`. The site is that mock-up rebuilt as
+components: one landing page with no navigation, plus the privacy policy and the imprint,
+which are linked from the footer only (as in the mock-up) and reuse its styles.
 
 ## Pages
 
 | URL | Source |
 |---|---|
-| `/` | `src/pages/index.astro`: hero, four featured horses, the 4-step quiz, how it works, services |
-| `/services/` | `src/pages/services.astro` + `src/content/texts/services.json` |
-| `/about/` | `src/pages/about.astro` + `src/content/texts/about.json` |
-| `/contact/` | `src/pages/contact.astro` + `src/content/texts/contact.json` |
+| `/` | `src/pages/index.astro`: hero, the 4-step quiz, how it works, services, footer |
 | `/privacy/` | `src/content/pages/privacy.md` |
 | `/imprint/` | `src/content/pages/imprint.md` |
-| `/horses/` | `src/pages/horses/index.astro`: the catalogue with filters + `src/content/texts/catalogue.json` |
-| `/horses/<slug>/` | `src/pages/horses/[slug].astro`: one page per horse in `src/content/horses/` |
+| `404.html` | `src/pages/404.astro`: any address that does not exist |
+
+Until 2026-11-05 the site also had a horse catalogue, a page per horse, and Services,
+About and Contact pages. The client asked for one page again; that code is in the git
+history (before the commit that removed it).
 
 ## Run it locally
 
@@ -39,12 +40,15 @@ All page text lives in files in the repository (no database), so every change ha
 history, and the admin panel can edit the same files through the GitHub API.
 
 - `src/content/texts/home.json`: every text on the home page, including the quiz
-  questions, answers, field labels, error messages and the thank-you screen. Also the
+  questions, answers (each with an optional single emoji, `icon`, shown before it and
+  hidden from screen readers; leads store only the words), field labels, error messages
+  and the thank-you screen. Also the
   hero photo, its alt text and an optional `photoPosition` (wide-screen crop focus,
   CSS `object-position`, e.g. `"10% 40%"`).
 - `src/content/texts/site.json`: shared across all pages: company name (`brand`,
   shown in the footer), logo and its alt text, the Instagram / TikTok / WhatsApp
-  links, the main navigation, the footer (closing call to action, photo, links), and
+  links, the footer (closing call to action, photo, privacy and imprint links), the
+  404 page's texts, and
   `endpoint`, an optional override of the address the quiz POSTs leads to. Leave it
   empty: the quiz sends leads through `src/scripts/lead-form.js` to the Worker named in
   `src/scripts/api-base.js`.
@@ -52,25 +56,22 @@ history, and the admin panel can edit the same files through the GitHub API.
   profile is not rendered, the WhatsApp buttons appear only with a real number (otherwise
   visitors use the quiz, and the texts with a `…NoWhatsapp` variant switch to it), and an
   empty `brand` shows `siteTitle` instead. The rules live in `src/scripts/site-values.js`.
-- `src/content/texts/services.json`, `about.json`, `contact.json`: the inner pages.
 - `src/content/pages/privacy.md`, `imprint.md`: legal pages in Markdown. The company's
   legal facts are front-matter fields of `imprint.md` (`companyName`, `legalForm`,
   `address`, `enterpriseNumber`, `vatNumber`, `email`); empty ones are named on the page
   as "being added". `privacy.md` has `reviewed: false` until the company approves the text.
   The admin's **Before you go live** screen lists every value still unset.
-- `src/content/horses/<slug>.md`: one file per horse. The front matter holds the facts
+- `src/content/horses/<slug>.md`: one file per horse. **Nothing on the site shows them
+  at the moment** (one page, no catalogue); the files, the photos and the admin's Horses
+  screen are kept so the catalogue can come back. The front matter holds the facts
   (`name`, `slug`, `price` or `priceOnRequest: true`, `year` of birth, `height` in cm,
   `sex`, `colour`, `breed`, `country`, `level`, `sire`, `dam`, `damsire`, `xrays`,
   optional `video`, `photos` with the cover first, optional `photoAlt` in the same order,
   optional `listed` date for the "Newest" sort) and the switches `sold`, `featured` and
-  `published`. The Markdown below it is the description. `published: false` removes the
-  horse from the whole site: no card, no page. The age is computed at build time.
-  Horses marked `sample: true` are demo horses shipped with the site; delete those files
+  `published`. The Markdown below it is the description. Photos are checked as paths
+  only, so no horse photo is copied into the build while nothing shows them. Horses marked `sample: true` are demo horses shipped with the site; delete those files
   (including `sample-unpublished.md`, which only tests the unpublished filter) when the
   real horses are in.
-- `src/content/texts/catalogue.json`: every text of the catalogue, the horse pages, the
-  home-page strip and the quiz's "Your enquiry is about …" line; also the price steps of
-  the price filter.
 
 Every file is validated at build time by the schemas in `src/content.config.ts`. A
 missing field or a mistyped key fails the build with a message naming the field, so
@@ -86,7 +87,8 @@ files with a path relative to that file, e.g.
 
 `/admin/` (not in the sitemap, disallowed in `robots.txt`, `noindex`). The owner logs in
 with the admin password and can read the quiz leads (CSV download included), add, edit,
-duplicate, hide, sell and delete horses with their photos, and edit every text file
+duplicate, hide, sell and delete horses with their photos (not shown on the site at the
+moment), and edit every text file
 above through labelled fields. Each save is a commit on `main`; the panel then shows
 "publishing…" until `/version.json` on the live site reports that commit.
 

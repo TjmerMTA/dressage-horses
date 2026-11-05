@@ -166,14 +166,16 @@ export function horseOf(lead) {
   }
 }
 
-/** "donatello-b" → "Donatello B". The slug is all the lead stores; the link opens the real page. */
+/**
+ * "donatello-b" → "Donatello B". Only leads sent before the site became one page
+ * (2026-11-05) can carry a horse; the horse pages are gone, so this is text, not a link.
+ */
 const horseName = (slug) => slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 
 function horseLine(l) {
   const slug = horseOf(l);
   if (!slug) return null;
-  return h("span", { class: "adm-sub adm-horse" }, "About ",
-    h("a", { href: `/horses/${slug}/`, target: "_blank", rel: "noopener", title: "Open the horse’s page on the site" }, horseName(slug)));
+  return h("span", { class: "adm-sub adm-horse" }, "About ", h("strong", {}, horseName(slug)));
 }
 
 /** The list shows the time on this computer's clock; the CSV is in UTC. Say both. */

@@ -36,7 +36,7 @@ const wa = whatsappHref(site.links.whatsapp);
   {missing.length > 0 && (
     <p>
       {known.length > 0 ? 'The ' : 'Our '}{list(missing.map(lower))} {missing.length === 1 ? 'is' : 'are'} being added to this page and will appear here shortly.
-      Until then, you can reach us through the <a href="/contact/">contact page</a>.
+      Until then, you can reach us through the <a href="/#quiz">quick quiz</a>.
     </p>
   )}
 
@@ -44,7 +44,7 @@ const wa = whatsappHref(site.links.whatsapp);
   <ul>
     {wa && <li><strong>WhatsApp:</strong> <a href={wa} target="_blank" rel="noopener">write to us on WhatsApp</a></li>}
     {email && <li><strong>E-mail:</strong> <a href={`mailto:${email}`}>{email}</a></li>}
-    <li><strong>Enquiries:</strong> the <a href="/#quiz">quick quiz</a> or the <a href="/contact/">contact page</a></li>
+    <li><strong>Enquiries:</strong> the <a href="/#quiz">quick quiz</a></li>
   </ul>
 
   <Content />

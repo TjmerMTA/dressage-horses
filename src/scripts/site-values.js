@@ -35,6 +35,18 @@ export function socialHref(kind, link) {
   return u.href;
 }
 
+/**
+ * A quiz answer's emoji (home.json → quiz.steps[].options[].icon): empty, or exactly one
+ * emoji — one grapheme, so a flag or a skin-tone emoji counts as one. Never two in a row,
+ * never words. Used by the build (src/content.config.ts) and by the admin's text editor.
+ */
+export function isOneEmojiOrNone(s) {
+  if (typeof s !== "string") return false;
+  if (s === "") return true;
+  const parts = [...new Intl.Segmenter("en", { granularity: "grapheme" }).segment(s)];
+  return parts.length === 1 && /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(s);
+}
+
 /** The name to show for the business: the company name, else the site's own title. */
 export function displayName(site) {
   return isSet(site && site.brand) ? site.brand.trim() : String((site && site.siteTitle) || "Dressage horses");
@@ -60,10 +72,10 @@ export function unsetValues({ site, imprint, privacy }) {
   if (site) {
     if (!isSet(site.brand)) add("brand", "Company name", `The footer shows “${displayName(site)}” instead.`, "site.json", "brand");
     if (!whatsappHref(site.links && site.links.whatsapp)) {
-      add("whatsapp", "WhatsApp number", "Every WhatsApp button is hidden; visitors use the quiz instead.", "site.json", "links.whatsapp");
+      add("whatsapp", "WhatsApp number", "Meanwhile the footer shows no WhatsApp icon and the quiz’s thank-you screen no “Write on WhatsApp now” button; visitors can only send the quiz.", "site.json", "links.whatsapp");
     }
-    if (!socialHref("instagram", site.links && site.links.instagram)) add("instagram", "Instagram link", "The Instagram icon and card are hidden.", "site.json", "links.instagram");
-    if (!socialHref("tiktok", site.links && site.links.tiktok)) add("tiktok", "TikTok link", "The TikTok icon and card are hidden.", "site.json", "links.tiktok");
+    if (!socialHref("instagram", site.links && site.links.instagram)) add("instagram", "Instagram link", "Meanwhile the footer shows no Instagram icon.", "site.json", "links.instagram");
+    if (!socialHref("tiktok", site.links && site.links.tiktok)) add("tiktok", "TikTok link", "Meanwhile the footer shows no TikTok icon.", "site.json", "links.tiktok");
   }
   if (imprint) {
     for (const [key, label] of IMPRINT_FIELDS) {

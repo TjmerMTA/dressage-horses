@@ -1,4 +1,5 @@
-// The catalogue table: cover, name, price, published / sold, and the actions.
+// The catalogue table: cover, name, price, published / sold, and the actions. Since the
+// site went back to one page (2026-11-05) nothing renders these horses; the screen says so.
 import { ApiError, deleteFile, listDir, photoUrl, readFile, writeFile } from "./api.js";
 import { HORSES_DIR, REPO_URL } from "./config.js";
 import { buildFrontMatter, parseFrontMatter, valuesOf } from "./frontmatter.js";
@@ -152,6 +153,7 @@ export async function renderHorses(root) {
   const empty = h("p", { class: "adm-empty" }, "No horses yet. Press “Add a horse” to create the first one.");
   root.replaceChildren(
     h("div", { class: "adm-head" }, h("h2", {}, "Horses"), h("div", { class: "adm-head-actions" }, h("a", { class: "btn btn-sm", href: "#/horses/new" }, "Add a horse"))),
+    h("p", { class: "adm-note" }, "The site is now a single page without a horse catalogue, so visitors see none of these horses; they are kept here in case the catalogue comes back."),
     summary, table, empty);
   draw();
 }

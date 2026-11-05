@@ -76,7 +76,7 @@ export async function renderHorseForm(root, { mode, slug }) {
   mk("name", "Name", h("input", { type: "text", value: v.name || "", autocomplete: "off", maxlength: 80 }));
   let slugTouched = mode === "edit";
   mk("slug", "Web address", h("input", { type: "text", value: mode === "edit" ? slug : (slugify(v.name || "")), autocomplete: "off", spellcheck: "false", maxlength: 60, readonly: mode === "edit" }),
-    mode === "edit" ? "The address can't change after a horse is created." : "Lower-case letters, numbers and hyphens. The page will be at /horses/<address>/.");
+    mode === "edit" ? "The address can't change after a horse is created." : "Lower-case letters, numbers and hyphens. Used as the horse’s file name.");
   const onRequest = h("input", { type: "checkbox", checked: v.priceOnRequest === true });
   mk("price", "Price in euros", h("input", { type: "text", inputmode: "numeric", value: Number.isFinite(v.price) ? String(v.price) : "", autocomplete: "off", disabled: v.priceOnRequest === true }),
     "Whole euros, for example 85000 or 85 000.");

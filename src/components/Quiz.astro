@@ -2,18 +2,11 @@
 // The mock-up's 4-step quiz. Markup, styles and behaviour are the mock-up's; the texts
 // come from home.json and the links/endpoint from site.json, handed to the script as
 // JSON so the (bundled, deferred) script itself contains no copy.
-import { getCatalogue, getHome, getSite } from '../lib/texts';
-import { getPublishedHorses } from '../lib/horses';
+import { getHome, getSite } from '../lib/texts';
 import { whatsappHref } from '../scripts/site-values.js';
 
 const { quiz } = await getHome();
 const site = await getSite();
-const catalogue = await getCatalogue();
-// Horses a visitor can enquire about from their page (/#quiz?horse=<slug>): published
-// and not sold. Only these slugs are recognised; anything else in the address is ignored.
-const horses = Object.fromEntries(
-  (await getPublishedHorses()).filter((h) => !h.data.sold).map((h) => [h.id, h.data.name]),
-);
 
 const data = {
   ...quiz,
@@ -21,9 +14,6 @@ const data = {
   whatsapp: whatsappHref(site.links.whatsapp) ?? '',
   // Without a WhatsApp number, the error message does not send people to WhatsApp.
   errors: { ...quiz.errors, send: whatsappHref(site.links.whatsapp) || !quiz.errors.sendNoWhatsapp ? quiz.errors.send : quiz.errors.sendNoWhatsapp },
-  horses,
-  horseNote: catalogue.quiz.horseNote,
-  horseRecap: catalogue.quiz.horseRecap,
 };
 // Safe to embed inside <script type="application/json">.
 const json = JSON.stringify(data).replace(/</g, '\\u003c');
@@ -45,9 +35,8 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
         {/* Shown while the page is parsed, so it costs no layout shift. Without JavaScript
             there are no steps, so "Step 1 of 4" stays hidden and the box says what it is. */}
         <script is:inline>document.getElementById('prog').hidden = false;</script>
-        <p class="q-horse" id="q-horse" hidden></p>
         <div id="steps" aria-live="polite">
-          <noscript><p class="q-nojs">{quiz.noScript} <a href="/contact/">{quiz.noScriptLink}</a></p></noscript>
+          <noscript><p class="q-nojs">{quiz.noScript} <a href="/imprint/">{quiz.noScriptLink}</a></p></noscript>
         </div>
         <div class="q-nav"><button type="button" class="link-btn" id="back" hidden>{quiz.back}</button></div>
       </div>
@@ -68,7 +57,7 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
   type StepKey = 'region' | 'budget' | 'format';
   interface QuizData {
     stepLabel: string;
-    steps: { key: StepKey; title: string; options: string[] }[];
+    steps: { key: StepKey; title: string; options: { icon: string; answer: string }[] }[];
     contactTitle: string;
     nameLabel: string;
     whatsappLabel: string;
@@ -81,9 +70,6 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
     thanksNamed: string;
     recap: Record<StepKey, string>;
     endpoint: string;
-    horses: Record<string, string>;
-    horseNote: string;
-    horseRecap: string;
   }
 
   const dataEl = document.getElementById('quiz-data');
@@ -94,7 +80,6 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
     const TOTAL = 4;
     const answers = { region: '', budget: '', format: '', name: '', whatsapp: '' };
     let step = 0;
-    let horse = ''; // slug of the horse the visitor came from, if any
     const stepsEl = document.getElementById('steps') as HTMLElement;
     const backBtn = document.getElementById('back') as HTMLButtonElement;
     const fill = document.getElementById('prog-fill') as HTMLElement;
@@ -130,8 +115,16 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       if (!probe) h.id = 'q-title';
       wrap.appendChild(h);
       const grid = el('div', 'opts');
-      s.options.forEach((opt) => {
-        const b = el('button', 'opt', opt);
+      s.options.forEach(({ icon, answer: opt }) => {
+        // The emoji is decoration for the eye only: aria-hidden, so the button's name is
+        // the plain answer; and the words stand on their own if the font lacks the glyph.
+        const b = el('button', 'opt');
+        if (icon) {
+          const ic = el('span', 'opt-icon', icon);
+          ic.setAttribute('aria-hidden', 'true');
+          b.appendChild(ic);
+        }
+        b.appendChild(el('span', 'opt-text', opt));
         b.type = 'button';
         b.setAttribute('aria-pressed', String(answers[s.key] === opt));
         b.addEventListener('click', () => {
@@ -254,11 +247,6 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
 
     backBtn.addEventListener('click', () => go(step - 1));
 
-    // The horse travels in the page address (/#quiz?horse=<slug>) — the lead API accepts
-    // no extra fields. Rebuilt here because a click on a "#quiz" link drops it from the hash.
-    const pageUrl = () =>
-      horse ? location.origin + location.pathname + location.search + '#quiz?horse=' + encodeURIComponent(horse) : location.href;
-
     // The POST itself (payload, timestamp, honeypot, tracking) lives in src/scripts/lead-form.js.
     const send = async (
       btn: HTMLButtonElement,
@@ -269,7 +257,7 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       btn.disabled = true;
       btn.textContent = Q.sending;
       const result = await sendLead(
-        { region: answers.region, budget: answers.budget, format: answers.format, name: answers.name, whatsapp: answers.whatsapp, consent: true, website: honeypot, page: pageUrl() },
+        { region: answers.region, budget: answers.budget, format: answers.format, name: answers.name, whatsapp: answers.whatsapp, consent: true, website: honeypot, page: location.href },
         Q.endpoint ? { endpoint: Q.endpoint } : {},
       );
       if (result.ok) {
@@ -296,7 +284,6 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       const lines: [string, string][] = [
         [Q.recap.region, answers.region], [Q.recap.budget, answers.budget], [Q.recap.format, answers.format],
       ];
-      if (horse) lines.unshift([Q.horseRecap, Q.horses[horse]]);
       lines.forEach(([k, v]) => {
         const li = el('li');
         const b = el('b', '', k + ': ');
@@ -307,29 +294,6 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       (document.getElementById('quiz-box') as HTMLElement).scrollIntoView({ block: 'center' });
     };
 
-    // "/#quiz?horse=<slug>" from a horse page (also "?horse=<slug>#quiz"). The fragment
-    // "quiz?horse=…" matches no id, so the browser does not scroll to the quiz by itself.
-    const noteEl = document.getElementById('q-horse') as HTMLElement;
-    const readHorse = () => {
-      const hash = location.hash;
-      const fromHash = hash.startsWith('#quiz?') ? new URLSearchParams(hash.slice(6)).get('horse') : null;
-      const slug = fromHash ?? new URLSearchParams(location.search).get('horse') ?? '';
-      if (!slug || !Object.prototype.hasOwnProperty.call(Q.horses, slug)) return false;
-      horse = slug;
-      const [before, after = ''] = Q.horseNote.split('{name}');
-      noteEl.replaceChildren(document.createTextNode(before), el('strong', '', Q.horses[slug]), document.createTextNode(after));
-      noteEl.hidden = false;
-      return hash.startsWith('#quiz?');
-    };
-    // Scroll and keyboard focus go together: the next Tab lands on the first answer, and a
-    // screen reader reads the step question followed by "Your enquiry is about <horse>".
-    const jump = () => {
-      (document.getElementById('quiz') as HTMLElement).scrollIntoView();
-      const t = document.getElementById('q-title');
-      if (!t) return;
-      t.setAttribute('aria-describedby', 'q-horse');
-      t.focus({ preventScroll: true });
-    };
 
     go(0, false);
     measure();
@@ -339,10 +303,6 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       measuredWidth = stepsEl.clientWidth;
       measure();
     }).observe(stepsEl);
-    if (readHorse()) requestAnimationFrame(jump);
-    window.addEventListener('hashchange', () => {
-      if (readHorse()) { if (step !== 0) go(0); jump(); }
-    });
   }
 </script>
 
@@ -361,14 +321,16 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
   .prog { display: flex; align-items: center; gap: 1rem; margin-block-end: 1.6rem; font-size: 0.85rem; color: var(--muted); }
   .prog-track { flex: 1; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
   .prog-fill { height: 100%; width: 25%; background: var(--accent); border-radius: 99px; transition: width .3s ease; }
-  .q-horse { margin-block: -0.4rem 1.2rem; padding: 0.8rem 1.1rem; border-radius: 14px; background: var(--accent-soft); color: var(--text); font-size: 0.97rem; }
-  .q-horse strong { color: var(--accent-text); }
   .q-title { font-size: clamp(1.35rem, 3.4vw, 1.8rem); margin-block-end: 1.3rem; }
   .q-title:focus { outline: none; }
   .opts { display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }
   .opt { text-align: start; padding: 1.1rem 1.2rem; border: 2px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--text); font: 600 1.02rem/1.35 var(--sans); cursor: pointer; transition: border-color .12s, background .12s, transform .12s, box-shadow .12s; min-height: 4rem; display: flex; align-items: center; box-shadow: 0 3px 0 var(--line-strong), 0 10px 20px rgba(41,19,5,.07); }
   .opt:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 5px 0 var(--accent), 0 14px 24px rgba(41,19,5,.10); }
   .opt:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--line-strong), 0 4px 8px rgba(41,19,5,.08); }
+  /* One emoji before the words, at the text's own size; it never shrinks or wraps away
+     from them, and the words keep their own box so a long answer wraps beside it. */
+  .opt-icon { flex: none; inline-size: 1.35em; margin-inline-end: 0.55em; font-size: 1em; line-height: 1; text-align: center; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", var(--sans); }
+  .opt-text { min-inline-size: 0; }
   .opt[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 3px 0 var(--accent), 0 10px 20px rgba(41,19,5,.07); }
   .q-nav { margin-block-start: 1.4rem; min-height: 2.4rem; }
   .link-btn { background: none; border: 0; padding: 0.4rem 0; color: var(--muted); font: 600 0.95rem var(--sans); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
