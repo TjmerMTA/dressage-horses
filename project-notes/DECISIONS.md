@@ -38,3 +38,27 @@ Why: the client asked for a "full" site rather than the one landing page, and a 
 dealer without a catalogue of horses is not a full site. The listings will be sample
 entries built from the supplied photographs until the client gives real ones.
 Revisit when: the client says the catalogue is unwanted, or hands over real listings.
+
+## 2026-11-05 — The client: one page, no catalogue, no menu
+Taken by the client (Danylo Shevchenko, by Telegram), overturning the director's
+2026-11-04 decision to add a catalogue and inner pages. His words: "Did you make
+several pages? We only need one, no navigation and no menu… The second block with our
+horses — it is not in the mock-up, we are removing it."
+What goes: the catalogue and every horse page, the featured strip, /services/, /about/,
+/contact/, the header navigation and the phone menu.
+What stays: /privacy/ and /imprint/, linked from the footer only, because the mock-up
+links to them and the quiz collects personal data.
+The catalogue code stays in git history and the photographs stay in the repository,
+unreferenced, so it can come back cheaply.
+Revisit when: the client asks for horses to be shown on the site.
+
+## 2026-11-05 — Emoji in the quiz options
+The client asked for them ("so the list doesn't look so dull"). One per option, chosen
+for meaning, hidden from screen readers so the option still reads as plain words.
+
+## 2026-11-05 — The footer's social links stay hidden until there are real values
+The client's complaint was that Instagram, TikTok and WhatsApp are missing from the
+footer. They are missing because nobody has given a handle or a number; the rule is to
+hide a link with no address rather than ship a dead one. Kept. The three values are
+waiting in the admin's "Before you go live" screen; filling them in makes the icons
+appear with no code change.

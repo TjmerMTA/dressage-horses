@@ -1,27 +1,17 @@
 ---
 // The imprint. The company's legal facts live in the front matter of imprint.md (editable
 // in the admin). Facts that are set are listed; the ones still missing are named in one
-// calm sentence instead of "to be confirmed" placeholders. Nothing is ever made up.
+// dated sentence instead of "to be confirmed" placeholders. Nothing is ever made up.
+// Facts and channels are read through src/lib/legal.ts, like the privacy policy.
 import { getEntry, render } from 'astro:content';
 import LegalPage from '../components/LegalPage.astro';
-import { getSite } from '../lib/texts';
-import { IMPRINT_FIELDS, isSet, whatsappHref } from '../scripts/site-values.js';
+import { getLegalFacts, listText, lowerFirst } from '../lib/legal';
 
 const entry = await getEntry('pages', 'imprint');
 if (!entry) throw new Error('src/content/pages/imprint.md is missing');
 const { Content } = await render(entry);
-const site = await getSite();
-
-const data = entry.data as unknown as Record<string, unknown>;
-const value = (k: string) => (typeof data[k] === 'string' ? (data[k] as string).trim() : '');
-const companyFacts = IMPRINT_FIELDS.filter(([k]) => k !== 'email');
-const known = companyFacts.filter(([k]) => isSet(value(k)));
-const missing = companyFacts.filter(([k]) => !isSet(value(k))).map(([, label]) => label.replace(/ \(.*\)$/, ''));
-const lower = (s: string) => (/^[A-Z]{2,}/.test(s) ? s : s.charAt(0).toLowerCase() + s.slice(1));
-const list = (items: string[]) =>
-  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
-const email = isSet(value('email')) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value('email')) ? value('email') : '';
-const wa = whatsappHref(site.links.whatsapp);
+const { known, missing, email, whatsapp, asOf } = await getLegalFacts();
+const one = missing.length === 1;
 ---
 
 <LegalPage entry={entry}>
@@ -30,22 +20,26 @@ const wa = whatsappHref(site.links.whatsapp);
   <h2>Company</h2>
   {known.length > 0 && (
     <ul>
-      {known.map(([k, label]) => <li><strong>{label}:</strong> {value(k)}</li>)}
+      {known.map(({ label, value }) => <li><strong>{label}:</strong> {value}</li>)}
     </ul>
   )}
   {missing.length > 0 && (
     <p>
-      {known.length > 0 ? 'The ' : 'Our '}{list(missing.map(lower))} {missing.length === 1 ? 'is' : 'are'} being added to this page and will appear here shortly.
+      As of {asOf}, {known.length > 0 ? 'the ' : 'our '}{listText(missing.map(lowerFirst))} {one ? 'is' : 'are'} not yet published on this page.{' '}
+      {one ? 'It' : 'They'} will be added as soon as the company has confirmed {one ? 'it' : 'them'}.{' '}
       Until then, you can reach us through the <a href="/#quiz">quick quiz</a>.
     </p>
   )}
 
   <h2>Contact</h2>
   <ul>
-    {wa && <li><strong>WhatsApp:</strong> <a href={wa} target="_blank" rel="noopener">write to us on WhatsApp</a></li>}
+    {whatsapp && <li><strong>WhatsApp:</strong> <a href={whatsapp} target="_blank" rel="noopener">write to us on WhatsApp</a></li>}
     {email && <li><strong>E-mail:</strong> <a href={`mailto:${email}`}>{email}</a></li>}
-    <li><strong>Enquiries:</strong> the <a href="/#quiz">quick quiz</a></li>
+    <li><strong>Quiz:</strong> the <a href="/#quiz">four-question quiz</a> on our home page. Leave your name and WhatsApp number, and we’ll contact you on WhatsApp.</li>
   </ul>
+  {!whatsapp && !email && (
+    <p>As of {asOf}, no phone number, WhatsApp number or e-mail address of the company is published on this site, so the quiz is the one way to reach us through it.</p>
+  )}
 
   <Content />
 </LegalPage>
