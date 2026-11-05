@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PageHeader from '../components/PageHeader.astro';
-import ContactForm from '../components/ContactForm.astro';
 import { getContact, getSite } from '../lib/texts';
 import { socialHref, whatsappHref } from '../scripts/site-values.js';
 
@@ -19,9 +18,7 @@ if (!whatsappHref(links.whatsapp) && leadNoWhatsapp) header.lead = leadNoWhatsap
   <PageHeader {...header} />
   <main id="main" tabindex="-1">
     <section class="channels-sec" aria-label="Ways to reach us">
-      <div class="wrap contact-grid">
-        {/* A direct message first: it is the one way to reach a person without the quiz. */}
-        <ContactForm />
+      <div class="wrap">
         <div class="channels">
           {channels.map((c, i) => (
             <article class="card">
@@ -42,10 +39,8 @@ if (!whatsappHref(links.whatsapp) && leadNoWhatsapp) header.lead = leadNoWhatsap
 
 <style>
   .channels-sec { padding-block: 4rem 5rem; }
-  .contact-grid { display: grid; gap: clamp(1.2rem, 3.2vw, 2.2rem); grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); align-items: start; }
-  @media (max-width: 899px) { .contact-grid { grid-template-columns: 1fr; } }
-  .channels { display: grid; gap: clamp(1.2rem, 3.2vw, 2.2rem); }
-  @media (min-width: 600px) and (max-width: 899px) { .channels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .channels { display: grid; gap: clamp(1.2rem, 3.2vw, 2.2rem); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 599px) { .channels { grid-template-columns: 1fr; } }
   .channels .card { display: grid; align-content: start; justify-items: start; gap: 0; }
   .channels h2 { font-family: var(--sans); font-size: 1.2rem; margin-block-end: 0.6rem; }
   .channels p { margin-block-end: 1.4rem; }

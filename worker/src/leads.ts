@@ -1,12 +1,4 @@
 // Public lead intake and the admin's lead listing / CSV export.
-//
-// Two kinds of lead arrive at POST /lead:
-//   quiz     the four-question quiz: region, budget, format, name, contact (the default
-//            when `kind` is left out, so the quiz and older clients work unchanged)
-//   message  the contact page's form: name, contact, a free-text `message`, consent
-// The message is untrusted text from the open internet. It is stored as plain text, the
-// API returns it only inside JSON, and the CSV neutralises it like every other cell. Any
-// page that shows it must insert it as text (textContent), never as HTML.
 
 import { Env, HttpError, json, readJson, textResponse } from "./http";
 import { rateLimit } from "./security";
@@ -15,7 +7,7 @@ export const LEAD_BODY_LIMIT = 4 * 1024;
 const MAX_LEADS = 10_000;
 const TRACKING_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "fbclid", "gclid"] as const;
 const KNOWN_KEYS = new Set<string>([
-  "kind", "name", "region", "budget", "format", "contact", "whatsapp", "consent", "message",
+  "name", "region", "budget", "format", "contact", "whatsapp", "consent",
   "website", // honeypot: a hidden field real people leave empty
   "ts", // ms since epoch when the form was rendered
   "page", "sent_at", ...TRACKING_KEYS,
@@ -24,31 +16,14 @@ const MIN_FILL_MS = 2_000;
 const MAX_CLOCK_DRIFT_MS = 30 * 24 * 60 * 60 * 1000;
 // Control characters, including the JS line/paragraph separators.
 const CONTROL_RE = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
-// The same, minus the line feed: a message may have several lines.
-const CONTROL_EXCEPT_LF_RE = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u2028\u2029]/;
-/**
- * Longest message, in UTF-16 code units (what a textarea's maxlength counts). Chosen so
- * that a message at the cap, written in any two-byte script (Cyrillic, Greek, Arabic,
- * Hebrew…), still fits the 4 KB body limit together with the longest name, contact and
- * page address the API accepts.
- */
-export const MESSAGE_MAX = 1000;
-const MESSAGE_MAX_LINES = 40;
-export const LEAD_KINDS = ["quiz", "message"] as const;
-export type LeadKind = (typeof LEAD_KINDS)[number];
 
 export interface Lead {
   id: string;
   createdAt: string;
-  /** Leads stored before messages existed have no kind: read them as "quiz". */
-  kind?: LeadKind;
   name: string;
-  /** region, budget and format: quiz leads only. */
-  region?: string;
-  budget?: string;
-  format?: string;
-  /** Message leads only: plain text, at most MESSAGE_MAX characters, "\n" between lines. */
-  message?: string;
+  region: string;
+  budget: string;
+  format: string;
   contact: string;
   consent?: boolean;
   page?: string;
@@ -65,29 +40,6 @@ function text(body: Record<string, unknown>, key: string, min: number, max: numb
   if (typeof v !== "string") throw new HttpError(400, `invalid field: ${key}`);
   const s = v.normalize("NFC").trim();
   if (s.length < min || s.length > max || CONTROL_RE.test(s)) throw new HttpError(400, `invalid field: ${key}`);
-  return s;
-}
-
-/**
- * The free-text message: NFC, CR LF / CR → LF, tabs → spaces, trailing spaces cut from
- * every line, runs of blank lines collapsed to one, trimmed. Any other control character
- * is refused rather than silently dropped.
- */
-function messageText(body: Record<string, unknown>): string {
-  const v = body["message"];
-  if (v === undefined || v === null || v === "") throw new HttpError(400, "missing field: message");
-  if (typeof v !== "string") throw new HttpError(400, "invalid field: message");
-  const s = v
-    .normalize("NFC")
-    .replace(/\r\n?/g, "\n")
-    .replace(/\t/g, " ")
-    .replace(/[ \u00a0]+$/gm, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-  if (s.length === 0) throw new HttpError(400, "missing field: message");
-  if (s.length > MESSAGE_MAX || CONTROL_EXCEPT_LF_RE.test(s) || s.split("\n").length > MESSAGE_MAX_LINES) {
-    throw new HttpError(400, "invalid field: message");
-  }
   return s;
 }
 
@@ -120,38 +72,16 @@ export function validateLead(body: Record<string, unknown>, now: number): Omit<L
   // gives a negative age; we let that through rather than drop a real lead.
   if (age >= 0 && age < MIN_FILL_MS) return null;
 
-  const rawKind = body["kind"];
-  if (rawKind !== undefined && !(LEAD_KINDS as readonly unknown[]).includes(rawKind)) {
-    throw new HttpError(400, "invalid field: kind");
-  }
-  const kind: LeadKind = rawKind === "message" ? "message" : "quiz";
-
   const name = text(body, "name", 2, 100, true)!;
-  let answers: { region: string; budget: string; format: string } | undefined;
-  let message: string | undefined;
-  if (kind === "quiz") {
-    if (body["message"] !== undefined) throw new HttpError(400, "invalid field: message");
-    answers = {
-      region: text(body, "region", 1, 100, true)!,
-      budget: text(body, "budget", 1, 100, true)!,
-      format: text(body, "format", 1, 100, true)!,
-    };
-  } else {
-    // A message carries no quiz answers: one shape per kind, nothing mixed.
-    for (const k of ["region", "budget", "format"]) {
-      if (body[k] !== undefined) throw new HttpError(400, `invalid field: ${k}`);
-    }
-    message = messageText(body);
-  }
+  const region = text(body, "region", 1, 100, true)!;
+  const budget = text(body, "budget", 1, 100, true)!;
+  const format = text(body, "format", 1, 100, true)!;
   const contact = text(body, "contact", 3, 200, false) ?? text(body, "whatsapp", 3, 200, false);
   if (contact === undefined) throw new HttpError(400, "missing field: contact");
   if (!validContact(contact)) throw new HttpError(400, "invalid field: contact");
 
   const consent = body["consent"];
   if (consent !== undefined && consent !== true) throw new HttpError(400, "invalid field: consent");
-  // The quiz has always sent consent; older quiz clients that did not are still accepted.
-  // The message form is new, so for it the box must have been ticked.
-  if (kind === "message" && consent !== true) throw new HttpError(400, "missing field: consent");
 
   text(body, "sent_at", 0, 40, false); // accepted for compatibility, not stored
 
@@ -173,7 +103,7 @@ export function validateLead(body: Record<string, unknown>, now: number): Omit<L
   }
 
   return {
-    kind, name, ...answers, ...(message !== undefined ? { message } : {}), contact,
+    name, region, budget, format, contact,
     ...(consent === true ? { consent: true } : {}),
     ...(page !== undefined ? { page } : {}),
     ...(Object.keys(tracking).length ? { tracking } : {}),
@@ -252,29 +182,25 @@ export async function handleLeads(request: Request, env: Env): Promise<Response>
   return json({ ok: true, count: leads.length, truncated, leads });
 }
 
-/**
- * Quotes a CSV cell and neutralises spreadsheet formulas (CSV injection). A value that
- * looks like a phone number may keep its leading "+"; free text (`freeText`) never may.
- */
-function csvCell(v: string | undefined, freeText = false): string {
+/** Quotes a CSV cell and neutralises spreadsheet formulas (CSV injection). */
+function csvCell(v: string | undefined): string {
   let s = v ?? "";
-  const phoneLike = !freeText && /^[+-]?[0-9 ()./-]*$/.test(s);
-  if (/^[=@\t\r\n]/.test(s) || (/^[+-]/.test(s) && !phoneLike)) s = `'${s}`;
+  const phoneLike = /^[+-]?[0-9 ()./-]*$/.test(s);
+  if (/^[=@\t\r]/.test(s) || (/^[+-]/.test(s) && !phoneLike)) s = `'${s}`;
   return `"${s.replace(/"/g, '""')}"`;
 }
 
 export async function handleLeadsCsv(request: Request, env: Env): Promise<Response> {
   const { leads } = await loadLeads(env, new URL(request.url));
-  const cols = ["created_at", "name", "contact", "kind", "region", "budget", "format", "message", "consent", "country", "page",
+  const cols = ["created_at", "name", "contact", "region", "budget", "format", "consent", "country", "page",
     "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "id"];
   const rows = [cols.join(",")];
   for (const l of leads) {
     const t = l.tracking ?? {};
     rows.push([
-      l.createdAt, l.name, l.contact, l.kind ?? "quiz", l.region, l.budget, l.format, l.message,
-      l.consent ? "yes" : "", l.country, l.page,
+      l.createdAt, l.name, l.contact, l.region, l.budget, l.format, l.consent ? "yes" : "", l.country, l.page,
       t["utm_source"], t["utm_medium"], t["utm_campaign"], t["utm_content"], t["utm_term"], l.id,
-    ].map((v, i) => csvCell(v, cols[i] === "message")).join(","));
+    ].map(csvCell).join(","));
   }
   const day = new Date().toISOString().slice(0, 10);
   // BOM so Excel opens UTF-8 (names, €) correctly.

@@ -71,7 +71,7 @@ gets a 403. Admin calls send `Authorization: Bearer <token>`.
 | `POST /admin/login` | — | `{"password"}` → `{"ok":true,"token","expiresIn":43200}`. 5 attempts per IP per 15 min (right or wrong) → 429. |
 | `POST /admin/logout` | session | Ends the session. |
 | `GET /admin/leads?from=YYYY-MM-DD&to=YYYY-MM-DD` | session | `{"ok","count","truncated","leads":[…]}`, newest first. Both dates optional, inclusive, UTC. |
-| `GET /admin/leads.csv?from=&to=` | session | UTF-8 CSV (with BOM, for Excel). Columns: `created_at,name,contact,kind,region,budget,format,message,consent,country,page,utm_*,id`. Cells that start like a formula are prefixed with `'`; the `message` cell also when it starts with `+` or `-`, even if it looks like a number. Lines inside a message stay inside the quoted cell. |
+| `GET /admin/leads.csv?from=&to=` | session | UTF-8 CSV (with BOM, for Excel). Cells that start like a formula are prefixed with `'`. |
 | `GET /admin/content?path=` | session | File: `{"type":"file","path","sha","size","encoding":"utf-8"\|"base64","content"}`. Directory: `{"type":"dir","entries":[{name,path,type,sha,size}]}`. |
 | `PUT /admin/content` | session | `{"path","content","sha"?,"message"?}`. Max 512 KB of text. `sha` is the one from GET (omit it to create a new file). A stale `sha` → 409. `.json` must parse. → `{"ok","path","sha","commit"}` |
 | `DELETE /admin/content` | session | `{"path","sha","message"?}`. Same path rules as PUT (text files only, so photos are never deleted from the panel). → `{"ok","path","commit"}` |
@@ -89,7 +89,6 @@ character set is `[A-Za-z0-9._-]`. `public/CNAME` is locked. Text writes accept 
 
 ```json
 {
-  "kind": "quiz",                         // optional: "quiz" (the default) or "message"
   "name": "Anna",                         // required, 2–100 chars
   "region": "Europe",                     // required, 1–100
   "budget": "€60,000 – 100,000",          // required, 1–100
@@ -108,39 +107,10 @@ character set is `[A-Za-z0-9._-]`. `public/CNAME` is locked. Text writes accept 
 Any other key → 400. A filled honeypot, or a submit less than 2 s after `ts`, gets the
 normal `{"ok":true}` but is not stored, so bots learn nothing.
 
-### Message payload (the contact page's form)
-
-Same endpoint, same limits (4 KB body, the same 5-per-10-minutes counter as the quiz,
-honeypot and `ts`), same answer: exactly `{"ok":true}`.
-
-```json
-{
-  "kind": "message",                      // required for a message
-  "name": "Anna",                         // required, 2–100 chars
-  "contact": "anna@example.org",          // required: phone (7–15 digits) or e-mail
-  "message": "Hello, I am looking for…",  // required, 1–1000 chars, up to 40 lines
-  "consent": true,                        // required, must be true
-  "ts": 1793793337420, "website": "",     // as for the quiz
-  "page": "…", "utm_source": "…"          // optional, as for the quiz
-}
-```
-
-`region`, `budget` and `format` are refused on a message, and `message` is refused on a
-quiz lead (400): one shape per kind. The message is normalised (NFC, CR LF → LF, tabs →
-spaces, trailing spaces and runs of blank lines removed, trimmed); any other control
-character → 400. 1000 characters is the most that still fits the 4 KB body in any
-two-byte script next to the longest name, contact and page address.
-
-The stored lead gets `"kind": "message"` and `"message"`, and no `region`/`budget`/`format`.
-Quiz leads are stored with `"kind": "quiz"`; leads stored before this change have no
-`kind` and are quiz leads. **The message is untrusted text: show it with `textContent`
-(or a text node), never `innerHTML`.**
-
 ### Who calls this
 
 - The quiz, through `src/scripts/lead-form.js` (`sendLead(answers)`; it adds `ts`, the
   `website` honeypot, the page address and `utm_*`).
-- The contact page's message form, through `src/scripts/send-message.js` (`sendMessage()`; same `ts`, honeypot, page address and `utm_*`, plus `kind: "message"`).
 - The admin panel at `/admin/` (`src/scripts/admin/`).
 - Both find the Worker through `src/scripts/api-base.js`: put the `*.workers.dev`
   address that `npx wrangler deploy` prints into `PRODUCTION_API` there.
