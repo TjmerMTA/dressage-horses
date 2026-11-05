@@ -1,16 +1,19 @@
 # Status
 
-Notebook v1 — updated 2026-11-05 12:10
+Notebook v1 — updated 2026-11-05 18:30
 
-**Last time:** the quiz was connected to Notion, and the connection was made settable
-from the admin instead of the command line. Both pieces merged; the site rebuilt
-(commit `e190738`, live) and the Worker deployed (version `bc1c579a`, live). The new
-addresses answer. The final account is
-`jobs/2026-11-04-horse-site/receipt.md`, with the Notion work in its addendum.
+**Last time:** the client reported that the Notion screen would not work. The server shows
+nothing was ever saved — no key, no database. A real cause was found and fixed: both the
+panel and the Worker refused any key that was not `ntn_`/`secret_` + letters and digits, so
+a key in any other shape could not even be tried. Both now accept one word without spaces
+and let Notion judge it. Live: site `fcabbb9`, Worker `59c30687`; checked against the real
+Notion API with a hyphenated key — it reaches Notion and comes back with Notion's own answer.
 **Waiting on you:**
 1. the client to paste the Notion key and the database link into the admin's **Notion**
-   screen (or to give access by e-mail to nazar82666@gmail.com so it can be done for
-   him) — the code is live, the connection is not
+   screen and press **Save** (or to give access by e-mail to nazar82666@gmail.com so it
+   can be done for him) — the code is live, the connection is not. If it refuses again,
+   the exact words on the screen are what is needed: nothing reaches the server, so there
+   is nothing to read from this end.
 2. the company's own facts: registered name, legal form, registered office, enterprise
    number, VAT number, e-mail
 3. the client to choose A, B or neither at https://dev.siteboosty.com/sketch/photos/
