@@ -1,10 +1,78 @@
 ---
+// The privacy policy. The long text is Markdown in src/content/pages/privacy.md. The parts
+// that depend on facts the company has not given yet are built here, from the same source
+// as the imprint (src/lib/legal.ts), so they update themselves and never claim more than
+// is set:
+//   - the draft note, shown until the admin sets `reviewed: true` in privacy.md
+//   - who the controller is: the company's details once they are in imprint.md
+//   - how to reach us about your data: WhatsApp and e-mail once they are set; the quiz always
 import { getEntry, render } from 'astro:content';
 import LegalPage from '../components/LegalPage.astro';
+import { formatDay, getLegalFacts, listText, lowerFirst } from '../lib/legal';
 
 const entry = await getEntry('pages', 'privacy');
 if (!entry) throw new Error('src/content/pages/privacy.md is missing');
 const { Content } = await render(entry);
+const { missing, fact, email, whatsapp } = await getLegalFacts();
+const asOf = formatDay(entry.data.updated);
+const draft = entry.data.reviewed !== true;
+
+const name = fact('companyName');
+const form = fact('legalForm');
+const office = fact('address');
+const number = fact('enterpriseNumber');
+const one = missing.length === 1;
+const missingText = listText(missing.map(lowerFirst));
+const direct = Boolean(whatsapp || email);
 ---
 
-<LegalPage entry={entry}><Content /></LegalPage>
+<LegalPage entry={entry}>
+  {draft && (
+    <p>
+      <strong>A note before you read.</strong> This policy is a draft. It describes accurately how this website handles your
+      data as of {asOf}, and it is waiting for {missing.length > 0 ? 'the company’s legal details and its own review' : 'the company’s own review'}.
+      Until then, the ways to reach us about your data are listed below, under “How to reach us about your data”.
+    </p>
+  )}
+
+  <h2>Who is responsible</h2>
+  {name ? (
+    <p>
+      The controller of your personal data under the EU General Data Protection Regulation (GDPR) is {name}{form && `, ${form}`}
+      {office && `, with its registered office at ${office}`}{number && `, enterprise number ${number}`}.
+      {missing.length > 0 && ` As of ${asOf}, its ${missingText} ${one ? 'is' : 'are'} not yet published on this site.`}
+    </p>
+  ) : (
+    <p>
+      This website is run by a company established in Belgium, which is the controller of your personal data under the EU
+      General Data Protection Regulation (GDPR). As of {asOf}, its {missingText} {one ? 'is' : 'are'} not yet published
+      on this site. {one ? 'It' : 'They'} will be added to this policy and to the imprint as soon as the company has
+      confirmed {one ? 'it' : 'them'}.
+    </p>
+  )}
+
+  <h2>How to reach us about your data</h2>
+  <p>
+    For anything about your data, for example to ask what we hold about you, to have it corrected or deleted, or to
+    withdraw your consent:
+  </p>
+  <ul>
+    {whatsapp && <li><strong>WhatsApp:</strong> <a href={whatsapp} target="_blank" rel="noopener">write to us on WhatsApp</a>.</li>}
+    {email && <li><strong>E-mail:</strong> <a href={`mailto:${email}`}>{email}</a>.</li>}
+    <li>
+      <strong>The quiz on our home page:</strong> answer the <a href="/#quiz">four questions</a>, leave your name and
+      WhatsApp number and tick the consent box. We’ll contact you on WhatsApp, and you can tell us there that your
+      request is about your data. For such a request, your answers to the first three questions do not matter.
+    </li>
+  </ul>
+  {!direct && (
+    <p>
+      As of {asOf}, the company has not yet published a phone number, WhatsApp number or e-mail address on this site,
+      so the quiz is the one way to reach us through it. We answer every request about your data within one month, as
+      the GDPR requires.
+    </p>
+  )}
+  {direct && <p>We answer every request about your data within one month, as the GDPR requires.</p>}
+
+  <Content />
+</LegalPage>

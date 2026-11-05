@@ -1,36 +1,34 @@
 ---
 title: Privacy policy
 eyebrow: Legal
-description: How this website handles the personal data you send through the quiz and the message form, who stores it, for how long, and how to use your rights.
-updated: 2026-11-04
+description: How this website handles the personal data you send through the quiz, who stores it, for how long, and how to use your rights.
+updated: 2026-11-05
 reviewed: false
 ---
 
-**A note before you read.** This policy is a draft that is waiting for the company’s own details. What it says about how your data is handled is accurate today. What is still missing is the company’s legal name, address and enterprise number, which are not published on this site yet. Until they are, please use the [message form on our contact page](/contact/#message) for anything about your data. This text is not legal advice, and it will be completed and reviewed by the company.
-
-## Who is responsible
-
-This website is run by a company established in Belgium, which is the controller of your personal data under the EU General Data Protection Regulation (GDPR). Its registered name, address and enterprise number are not published on this site yet. They will appear here and in the [imprint](/imprint/) as soon as the company has confirmed them.
-
-To contact us about your data, for example to see what we hold about you, to have it corrected or deleted, or to withdraw your consent, use the [message form on our contact page](/contact/#message) and begin your message with “Privacy”. That form reaches us directly. Please give the name and the phone number or e-mail address you used before, so that we can find your request.
+<!-- Above this text the page adds, by itself: the draft note (until "reviewed" is true),
+     "Who is responsible" and "How to reach us about your data". They are filled in from the
+     imprint's company details and the site's WhatsApp link, so they change when those do. -->
 
 ## What we collect
 
-**When you visit the website.** The website is a set of static pages hosted on GitHub Pages (GitHub, Inc.). It sets no cookies and uses no analytics, advertising or tracking tools. Like every web server, GitHub’s servers process your IP address and basic technical information about your request, such as your browser type, to deliver the page and keep the service secure.
+**When you visit the website.** The website is a static site hosted on GitHub Pages (GitHub, Inc.). It sets no cookies, stores nothing in your browser and uses no analytics, advertising or tracking tools. Like every web server, GitHub’s servers process your IP address and basic technical information about your request, such as your browser type, to deliver the page and keep the service secure.
 
-**When you send the quiz or the message form.** What you enter goes from your browser to a small program we run on Cloudflare (a Cloudflare Worker, operated by Cloudflare, Inc.), which stores it in a Cloudflare database (Workers KV). We receive:
+**When you send the quiz.** What you enter goes from your browser to a small program we run on Cloudflare (a Cloudflare Worker, operated by Cloudflare, Inc.), which stores it in a Cloudflare database (Workers KV). We receive:
 
-- from the quiz: where you are from, your budget, how you want to buy, your name and your WhatsApp number;
-- from the message form: your name, your phone number or e-mail address, and your message;
-- in both cases: that you ticked the consent box, the time you sent the form, the address of the page you sent it from, campaign parameters such as `utm_source` if the link you followed contained them, and the country your connection comes from as Cloudflare reports it (a two-letter code such as BE; no city and no IP address).
+- your answers: where you are from, your budget and how you want to buy;
+- your name and your WhatsApp number;
+- that you ticked the consent box;
+- the time you sent the quiz, the address of the page you sent it from and, if the link you followed contained them, campaign parameters such as `utm_source`;
+- the country your connection comes from, as Cloudflare reports it: a two-letter code such as BE, with no city and no IP address.
 
 To keep automated spam out, the Worker counts requests per connection using a shortened one-way code made from your IP address. Your IP address itself is not stored, and the code deletes itself after at most 11 minutes. Cloudflare processes your IP address to deliver your request, as every network provider does.
 
-Your request can be seen only by the people who answer enquiries for the company, on a password-protected admin page.
+Your request can be seen only by the people who answer enquiries for the company, on a password-protected admin page, from which they can also download it as a spreadsheet.
 
 ## Why we use it
 
-We use your details only to answer you, on WhatsApp, by phone or by e-mail as you gave them to us, and to prepare the selection of horses you asked for. The legal basis is your consent (Article 6(1)(a) GDPR), which you give by ticking the checkbox before you send the form. You can withdraw it at any time, as described below.
+We use your details only to contact you on WhatsApp about your request and to prepare the selection of horses you asked for. The legal basis is your consent (Article 6(1)(a) GDPR), which you give by ticking the checkbox before you send the quiz. You can withdraw it at any time, as described below.
 
 We do not sell your details, we do not pass them on to advertisers, and we do not send you marketing messages.
 
@@ -38,7 +36,7 @@ We do not sell your details, we do not pass them on to advertisers, and we do no
 
 - **GitHub, Inc.** hosts the website.
 - **Cloudflare, Inc.** runs the Worker and the database that stores your request.
-- **WhatsApp (Meta Platforms)** processes the messages when we answer you on WhatsApp, under its own terms.
+- **WhatsApp (Meta Platforms)** processes the messages when we contact you on WhatsApp, under its own terms.
 
 GitHub and Cloudflare are based in the United States, and some of their processing may take place outside the European Economic Area. Such transfers need one of the safeguards the GDPR provides for, such as the EU Standard Contractual Clauses; the company will name the ones that apply when it completes this policy.
 
@@ -48,7 +46,7 @@ Your request stays in the database until we delete it. Nothing deletes it automa
 
 ## Your rights
 
-You have the right to access your data, to have it corrected or deleted, to restrict or object to its processing, to receive it in a portable format, and to withdraw your consent at any time. Withdrawing your consent does not affect what was done before. To use any of these rights, write to us through the [message form on our contact page](/contact/#message), beginning with “Privacy”. We answer within one month, as the GDPR requires.
+You have the right to access your data, to have it corrected or deleted, to restrict or object to its processing, to receive it in a portable format, and to withdraw your consent at any time. Withdrawing your consent does not affect what was done before. To use any of these rights, use one of the ways listed above under “How to reach us about your data”.
 
 You also have the right to lodge a complaint with a supervisory authority. In Belgium this is the Data Protection Authority (Gegevensbeschermingsautoriteit / Autorité de protection des données), [dataprotectionauthority.be](https://www.dataprotectionauthority.be).
 
