@@ -195,7 +195,7 @@ async function renderJsonFile(root, name, focus = "") {
       const net = kind === "instagram" ? "Instagram" : "TikTok";
       const shown = socialHref(kind, value) ? value : "";
       const f = field({ label: `${net} profile`, input: h("input", { type: "url", value: shown, autocomplete: "off", placeholder: kind === "instagram" ? "https://www.instagram.com/yourname" : "https://www.tiktok.com/@yourname", dataset: { path: pattern(path) } }),
-        hint: shown ? `The ${net} icon links here.` : `Not set yet — the ${net} icon and card are hidden on the site.` });
+        hint: shown ? `The ${net} icon links here.` : `Not set yet — the ${net} icon is hidden on the site.` });
       f.input.addEventListener("input", () => setAt(state, path, f.input.value.trim()));
       if (!shown && value) setAt(state, path, ""); // drop an old template value on save
       checks.push(() => {
@@ -344,7 +344,7 @@ async function renderPage(root, name, focus = "") {
     facts.length ? h("fieldset", { class: "adm-section" }, h("legend", {}, "Company details"), h("div", { class: "adm-grid" }, facts)) : null,
     reviewed ? h("fieldset", { class: "adm-section" }, h("legend", {}, "Approval"),
       h("div", { class: "adm-check" }, reviewed, h("label", { for: reviewed.id }, "The company has read this policy and approves it"),
-        h("span", { class: "adm-hint" }, "Tick this only after someone at the company (ideally with legal advice) has checked the text. It is not shown to visitors."))) : null,
+        h("span", { class: "adm-hint" }, "Tick this only after someone at the company (ideally with legal advice) has checked the text. Ticking it removes the “draft” note from the top of the public privacy page."))) : null,
     h("fieldset", { class: "adm-section" }, h("legend", {}, "Text"), body.wrap),
     h("div", { class: "adm-form-bar" }, saveBtn, h("a", { class: "btn btn-ghost", href: "#/texts" }, "Back")));
   form.addEventListener("input", () => { dirty = true; });

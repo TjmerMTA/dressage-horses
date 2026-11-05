@@ -94,7 +94,7 @@ export async function renderHorseForm(root, { mode, slug }) {
   mk("dam", "Dam (mother)", h("input", { type: "text", value: v.dam || "", autocomplete: "off", maxlength: 80 }));
   mk("damsire", "Damsire (mother’s father)", h("input", { type: "text", value: v.damsire || "", autocomplete: "off", maxlength: 80 }));
   mk("listed", "On sale since", h("input", { type: "date", value: /^\d{4}-\d{2}-\d{2}$/.test(String(v.listed || "")) ? String(v.listed) : (mode === "edit" ? "" : today), max: today }),
-    "Used to sort the list by newest.");
+    "The date the horse went on sale.");
   mk("video", "Video link (optional)", h("input", { type: "url", value: v.video || "", autocomplete: "off", placeholder: "https://www.youtube.com/watch?v=…" }), "A YouTube or Vimeo address.");
   mk("description", "Description", h("textarea", { rows: 9, maxlength: 10000 }, description),
     "The horse’s description. Empty line = new paragraph. **bold** for bold.");

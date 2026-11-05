@@ -1,0 +1,91 @@
+---
+// SKETCH ONLY (/sketch/photos/, Variant A). A full-width band of photographs between
+// "How it works" and "Services". Atmosphere, not a catalogue: no captions, names or prices.
+// Phones (< 640 px): square slides, one per swipe (scroll-snap). Wider: one row at a fixed
+// height, each photograph at its own shape, scrolling sideways. No client JS.
+//
+// Art direction: phones get square files cut at build time, so a 390 px phone does not
+// download a 1600 px landscape file only to show its middle. Wider screens get the
+// photograph uncut. AVIF and WebP for both; a JPEG of the uncut photograph as fallback.
+import { getImage } from 'astro:assets';
+import { bandPhotos, isLandscape } from './photos';
+
+// Phone slide: an 84vw square (330 px on a 390 px phone, 990 px at 3x).
+const phoneSizes = '84vw';
+const phoneWidths = [320, 480, 640, 800, 1000];
+// From 640 px the slide is clamp(16rem, 26vw, 24rem) high: 256 px below 985 px, 26vw up to
+// 1477 px, 384 px above. Landscape slides are 1.5 x that wide, portrait 1 / 1.5.
+const wideSizes = {
+  landscape: '(max-width: 984px) 384px, (max-width: 1476px) 39vw, 576px',
+  portrait: '(max-width: 984px) 171px, (max-width: 1476px) 17.4vw, 256px',
+};
+const wideWidths = [320, 480, 640, 960, 1280];
+
+const slides = await Promise.all(
+  bandPhotos.map(async (p) => {
+    const side = Math.min(p.src.width, p.src.height);
+    const square = (format: 'avif' | 'webp') =>
+      getImage({ src: p.src, width: side, height: side, widths: phoneWidths, fit: 'cover', position: p.crop ?? 'centre', format });
+    const uncut = (format: 'avif' | 'webp' | 'jpg') => getImage({ src: p.src, widths: wideWidths, format });
+    const [phoneAvif, phoneWebp, wideAvif, wideWebp, jpg] = await Promise.all([
+      square('avif'), square('webp'), uncut('avif'), uncut('webp'), uncut('jpg'),
+    ]);
+    return { p, land: isLandscape(p), phoneAvif, phoneWebp, wideAvif, wideWebp, jpg };
+  }),
+);
+---
+
+<section class="band" aria-label="Photographs">
+  <ul class="band-row" tabindex="0" aria-label="Photographs, scroll sideways">
+    {slides.map(({ p, land, phoneAvif, phoneWebp, wideAvif, wideWebp, jpg }) => (
+      <li class:list={['band-item', land ? 'is-land' : 'is-port']}>
+        <picture>
+          <source media="(max-width: 639px)" type="image/avif" srcset={phoneAvif.srcSet.attribute} sizes={phoneSizes} />
+          <source media="(max-width: 639px)" type="image/webp" srcset={phoneWebp.srcSet.attribute} sizes={phoneSizes} />
+          <source type="image/avif" srcset={wideAvif.srcSet.attribute} sizes={land ? wideSizes.landscape : wideSizes.portrait} />
+          <source type="image/webp" srcset={wideWebp.srcSet.attribute} sizes={land ? wideSizes.landscape : wideSizes.portrait} />
+          <img
+            src={jpg.src}
+            srcset={jpg.srcSet.attribute}
+            sizes={land ? wideSizes.landscape : wideSizes.portrait}
+            alt={p.alt}
+            width={p.src.width}
+            height={p.src.height}
+            loading="lazy"
+            decoding="async"
+            style={`--focus: ${p.focus}`}
+          />
+        </picture>
+      </li>
+    ))}
+  </ul>
+</section>
+
+<style>
+  .band { padding-block: clamp(2.5rem, 6vw, 4rem); background: var(--bg); }
+  .band-row {
+    --edge: max(1.25rem, calc((100% - 1120px) / 2));
+    list-style: none; margin: 0; padding-block: 0 0.9rem; padding-inline: var(--edge);
+    display: flex; gap: clamp(0.75rem, 1.6vw, 1rem);
+    overflow-x: auto; overscroll-behavior-inline: contain;
+    scroll-snap-type: inline mandatory; scroll-padding-inline: var(--edge);
+    scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
+  }
+  .band-row:focus-visible { outline-offset: -3px; border-radius: 22px; }
+  .band-item { flex: none; scroll-snap-align: start; border-radius: 22px; overflow: hidden; background: var(--accent-soft); }
+  .band-item picture { display: contents; }
+  .band-item img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: var(--focus, center); }
+
+  /* phones: one square photograph per swipe, the next one peeking in */
+  .band-item { inline-size: 84vw; block-size: 84vw; scroll-snap-stop: always; }
+  /* the phone files are already square: no second crop in the browser */
+  @media (max-width: 639px) { .band-item img { object-position: center; } }
+
+  /* wider: a row at one height, each photograph at its own shape */
+  @media (min-width: 640px) {
+    .band-row { scroll-snap-type: inline proximity; }
+    .band-item { --h: clamp(16rem, 26vw, 24rem); block-size: var(--h); scroll-snap-stop: normal; }
+    .band-item.is-land { inline-size: calc(var(--h) * 1.5); }
+    .band-item.is-port { inline-size: calc(var(--h) / 1.5); }
+  }
+</style>
