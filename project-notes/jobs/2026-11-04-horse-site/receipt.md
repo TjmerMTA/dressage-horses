@@ -11,9 +11,9 @@ https://dev.siteboosty.com/sketch/photos/
 | Row | What was asked | State |
 |---|---|---|
 | R01 | A "full" site from the mock-up | **met, as the client later narrowed it** — a catalogue and inner pages were built on day one, then removed on day two at his word (R10, R11) |
-| R02 | An admin panel | **built, not yet usable end to end** — login, the lead list, search, date filter and CSV all work on the live site; editing texts, horses and the social links is blocked because the Cloudflare secret `GITHUB_TOKEN` was stored empty. One edit by the person unblocks it. |
+| R02 | An admin panel | **met** — the secret was set on 5 Nov and the whole loop was proved on the live site: log in, read a text, save it, GitHub Actions rebuilds, the live `version.json` reports the exact commit, then the change was undone the same way and the file came back byte-identical. Leads, search, date filter and CSV work too. |
 | R03 | Fast on Google PageSpeed | **met** — Lighthouse on the live domain: 100 for performance, accessibility, best practices and SEO, on mobile and desktop. Largest paint 1.2 s on a simulated slow phone, no layout shift. Google's own PageSpeed page could not be used: its anonymous daily quota was exhausted. |
-| R04 | Use the horse photos from Downloads | **partly** — 25 of 32 were prepared (7 dropped: 2 Instagram screenshots with a watermark, 5 near-duplicates). The site shows 2 of them, because the mock-up has two photo places and the block that would show more was removed by R11. Two ways to use the other 23 are built and waiting at `/sketch/photos/`. |
+| R04 | Use the horse photos from Downloads | **met in part, by the client's own constraint** — 25 of 32 were prepared (7 dropped: 2 Instagram screenshots with a watermark, 5 near-duplicates). **10 are on the page**: the hero, the footer band, one per “How it works” step and one per service card — inside the blocks the mock-up already has, so no new block was added. The remaining 15 need a photo band; it is built and waiting at `/sketch/photos/`. |
 | R05 | The mock-up is the design source | **met** — compared side by side at 1280 px and 390 px. The differences are listed under "decided for you" below. |
 | R06 | Publish to the client's GitHub | **met** — `TjmerMTA/dressage-horses`, public, built by GitHub Actions on every push. |
 | R07 | Live at dev.siteboosty.com | **met** — with HTTPS enforced and a certificate issued. |
@@ -21,7 +21,7 @@ https://dev.siteboosty.com/sketch/photos/
 | R09 | It must look finished to people | **met** — no placeholder text, no dead link, no page that reads as unbuilt. 363 internal links checked on the live site, all 200. |
 | R10 | One page, no navigation, no menu | **met** |
 | R11 | Remove the horses block | **met** — the block, the catalogue and every horse page are gone; the files and photographs stay in the repository, unreferenced, so it can come back cheaply. |
-| R12 | Instagram, TikTok and WhatsApp in the footer | **waiting on the client** — the mechanism is built and was proved in a scratch build: the icons appear the moment the addresses are entered. Nobody has given a handle or a number, and a link with no address is hidden rather than shipped dead. |
+| R12 | Instagram, TikTok and WhatsApp in the footer | **met** — the client sent all three on 5 Nov. The brand-coloured icons from his own mock-up are live, and setting the number also brought back the “Write on WhatsApp now” button and the WhatsApp route in the privacy policy and the imprint. His first number had 13 digits; he corrected it to +380 98 913 6445. |
 | R13 | Emoji in the quiz's answers | **met** — 🌎 🌍 🏜️ 🌏 💶 💰 💎 💻 ✈️, one per answer, hidden from screen readers, stored without the emoji in the lead. |
 | R14 | Privacy and other technical pages stay separate | **met** — `/privacy/` and `/imprint/`, linked from the footer only. |
 
@@ -81,10 +81,13 @@ our own "page does not exist", not GitHub's.
 
 ## Still open
 
-1. **`GITHUB_TOKEN` is empty.** Cloudflare dashboard → Workers & Pages →
-   `dressage-horses-api` → Settings → Variables and Secrets → Edit. A fine-grained
-   GitHub token for this repository only, with Contents: Read and write and
-   Actions: Read. Nothing in the admin can save until this is done.
+1. **`GITHUB_TOKEN` is set, but it is the wide one.** It is the person's own `gh`
+   OAuth token, which reaches every repository they own, not only this one. It works
+   and it is stored only as a Cloudflare secret, but it should be replaced by a
+   fine-grained token for `TjmerMTA/dressage-horses` alone, with Contents: Read and
+   write and Actions: Read — made at github.com/settings/personal-access-tokens/new and
+   put in with the same `wrangler secret put GITHUB_TOKEN`. GitHub has no way to create
+   such a token except in a browser.
 2. **The company's own facts**: name, legal form, registered office, enterprise number,
    VAT number, e-mail, the WhatsApp number, the Instagram and TikTok addresses. The
    admin's "Before you go live" screen lists all of them.
@@ -94,8 +97,9 @@ our own "page does not exist", not GitHub's.
    relies on for sending data to GitHub and Cloudflare.
 4. **`/sketch/photos/`** is live, unlinked and not indexed. Remove it once the client
    has chosen A, B or neither.
-5. **The photo with the golden grass** carries a photographer's signature. Crop it or
-   swap it before it goes on the live page.
+5. **The photo with the golden grass** carries a photographer's signature. It was kept
+   off the live page for that reason and replaced by another; crop it and it can go
+   back.
 6. **Who owns the photographs**, and whether the people in them agreed to appear on a
    website, was never checked.
 7. **The Worker has not been redeployed** since Viktor's clearer error message was
