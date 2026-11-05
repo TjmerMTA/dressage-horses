@@ -80,5 +80,7 @@ export const KEY_LABELS = {
   icon: "Emoji before the answer (one, or leave empty)",
   answer: "Answer",
   noScript: "Quiz box text when the visitor’s browser has JavaScript off",
-  noScriptLink: "Link to the imprint (company contact details) after that text",
+  noScriptLink: "Link text shown after it when a WhatsApp number is set",
+  noScriptEmail: "Link text shown after it when only an e-mail is set",
+  noScriptNone: "Shown instead when neither WhatsApp nor an e-mail is set",
 };
