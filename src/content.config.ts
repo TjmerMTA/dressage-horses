@@ -83,6 +83,9 @@ const home = defineCollection({
         thanksText: z.string(),
         recap: z.object({ region: z.string(), budget: z.string(), format: z.string() }),
         whatsappNow: z.string(),
+        // Shown in the quiz box when JavaScript is off (the quiz is built by a script).
+        noScript: z.string(),
+        noScriptLink: z.string(),
       }),
       how: z.object({
         eyebrow: z.string(),
@@ -125,6 +128,14 @@ const site = defineCollection({
         links: z.array(z.object({ label: z.string(), href: z.string() })),
       }),
       stickyCta: z.string(),
+      notFound: z.object({ // the 404 page, shown for any address that does not exist
+        metaTitle: z.string(),
+        eyebrow: z.string(),
+        title: z.string(),
+        lead: z.string(),
+        home: z.string(),
+        horses: z.string(),
+      }),
     }),
 });
 
@@ -254,6 +265,7 @@ const catalogue = defineCollection({
       countOne: z.string(),
       empty: z.string(),
       emptyText: z.string(),
+      priceError: z.string(), // shown when "Price from" is above "Price up to"
     }),
     priceSteps: z.array(z.number().positive()).min(2),
     labels: z.object({
@@ -275,6 +287,8 @@ const catalogue = defineCollection({
       eyebrow: z.string(), // "{country}" is replaced
       lead: z.string(), // "{age}", "{colour}", "{sex}", "{height}", "{level}" are replaced
       gallery: z.string(), // "{name}" is replaced
+      summaryTitle: z.string(), // hidden heading of the price box next to the photos
+      soldButton: z.string(), // button under soldNote, to the contact page
       photo: z.string(), // "{n}" and "{total}" are replaced
       prev: z.string(),
       next: z.string(),

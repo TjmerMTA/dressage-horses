@@ -19,7 +19,7 @@ xrays: clean
 photos:
   - ../../assets/horses/horse-grey-golden-grass.jpg
 photoAlt:
-  - Woman in a red jacket stands close to a dapple-grey horse beside golden grass
+  - Dapple-grey horse with a braided mane in warm light, a woman in a red jacket beside it, golden grass behind
 listed: 2026-09-22
 ---
 

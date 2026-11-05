@@ -19,7 +19,7 @@ xrays: clean
 photos:
   - ../../assets/horses/horse-bay-smiling-woman.jpg
 photoAlt:
-  - Smiling woman in a black sweater stands beside a bay horse with a braided mane
+  - Tall bay horse with a braided mane, a smiling woman in a black sweater leaning against its neck
 listed: 2026-09-01
 sold: true
 ---
@@ -27,4 +27,4 @@ sold: true
 A sweet, people-loving bay mare with a small star, competing at L level. She has found
 her new home with one of our clients in Switzerland.
 
-Looking for a similar horse? Take the quiz and we search our network for you.
+Looking for a similar horse? Take the quiz and we'll search our network for you.

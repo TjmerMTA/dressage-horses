@@ -1,6 +1,7 @@
 ---
 // The mock-up's top bar (logo on the left). The site navigation sits on the right:
-// an inline pill of links from 600 px up, a <details> "Menu" below that (no JavaScript).
+// an inline pill of links from 600 px up, a <details> "Menu" below that (works without
+// JavaScript; a small script adds Escape and click-outside to close it).
 import { Image } from 'astro:assets';
 import { getSite } from '../lib/texts';
 
@@ -39,6 +40,24 @@ const isCurrent = (href: string) => (path === href ? 'page' : undefined);
     </nav>
   </details>
 </div>
+
+<script>
+  // The <details> menu works without JavaScript; this only adds the two ways of closing
+  // it that people expect: Escape (focus goes back to "Menu") and a tap or click outside.
+  document.querySelectorAll<HTMLDetailsElement>('details.nav-menu').forEach((menu) => {
+    const summary = menu.querySelector('summary');
+    // On the document, not the menu: after a mouse tap Safari leaves focus on <body>.
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || !menu.open) return;
+      e.preventDefault();
+      menu.open = false;
+      summary?.focus();
+    });
+    document.addEventListener('click', (e) => {
+      if (menu.open && !menu.contains(e.target as Node)) menu.open = false;
+    });
+  });
+</script>
 
 <style>
   .top { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.2rem 0; }

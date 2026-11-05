@@ -35,7 +35,7 @@ const photoLabel = (i: number) => fill(t.detail.photo, { n: i + 1, total });
             widths={[480, 720, 960, 1280, 1600]}
             sizes="(max-width: 899px) calc(100vw - 2.5rem), 680px"
             loading={i === 0 ? 'eager' : 'lazy'}
-            fetchpriority={i === 0 ? 'high' : undefined}
+            fetchpriority={i === 0 ? 'high' : 'low'}
             decoding="async"
           />
         </div>
@@ -59,7 +59,7 @@ const photoLabel = (i: number) => fill(t.detail.photo, { n: i + 1, total });
         {photos.map((src, i) => (
           <li>
             <a class="g-thumb" href={`#photo-${i + 1}`} data-thumb={i} aria-current={i === 0 ? 'true' : undefined}>
-              <Image src={src} alt={photoLabel(i)} width={96} densities={[1, 2]} loading="lazy" decoding="async" />
+              <Image src={src} alt={photoLabel(i)} width={96} densities={[1, 2]} loading="lazy" decoding="async" fetchpriority="low" />
             </a>
           </li>
         ))}

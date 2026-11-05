@@ -85,7 +85,8 @@ export function confirmDialog({ title, body, confirmLabel = "Confirm", cancelLab
   });
 }
 
-const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+// With the zone ("15:48 CET"), so a time read off the list can be matched with the CSV (UTC).
+const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
 export function formatDate(iso) {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : dateFmt.format(d);

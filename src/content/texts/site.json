@@ -68,5 +68,13 @@
       }
     ]
   },
-  "stickyCta": "FIND ME A HORSE"
+  "stickyCta": "FIND ME A HORSE",
+  "notFound": {
+    "metaTitle": "Page not found — Dressage horses",
+    "eyebrow": "Page not found",
+    "title": "This page does not exist",
+    "lead": "The address may be mistyped, or the page has moved. A horse that has been taken off the list no longer has its own page.",
+    "home": "GO TO THE HOME PAGE",
+    "horses": "SEE ALL HORSES"
+  }
 }

@@ -10,7 +10,7 @@
     "ticks": [
       "2,000+ horses to choose from in Belgium, Germany and the Netherlands",
       "Tryout, full vet check, paperwork and delivery to your country",
-      "800+ trusted horse owners and individual support on every step"
+      "800+ trusted horse owners and individual support at every step"
     ],
     "cta": "FIND ME A HORSE",
     "ctaNote": "4 quick questions",
@@ -20,7 +20,7 @@
   },
   "quiz": {
     "title": "Get your personal selection of 20 horses",
-    "intro": "Answer 4 quick questions so we can understand your request, get in touch for the details and prepare your selection.",
+    "intro": "Answer 4 quick questions. We'll then contact you to go through the details and prepare your selection.",
     "stepLabel": "Step {step} of {total}",
     "back": "← Back",
     "steps": [
@@ -58,7 +58,7 @@
     "whatsappPlaceholder": "+1 555 123 4567",
     "whatsappHint": "With country code, for example +971 or +1",
     "consent": "I agree to be contacted on WhatsApp about my request. We guarantee not to send you any marketing spam or share your details with third parties.",
-    "submit": "FIND A HORSE",
+    "submit": "FIND ME A HORSE",
     "sending": "Sending…",
     "errors": {
       "name": "Please enter your name.",
@@ -69,17 +69,19 @@
     },
     "thanksTitle": "Thank you!",
     "thanksNamed": "Thank you, {name}!",
-    "thanksText": "Your request is received. You will get a message on WhatsApp soon.",
+    "thanksText": "We have received your request. You will get a message on WhatsApp soon.",
     "recap": {
       "region": "Region",
       "budget": "Budget",
       "format": "Buying"
     },
-    "whatsappNow": "Write on WhatsApp now"
+    "whatsappNow": "Write on WhatsApp now",
+    "noScript": "This quiz needs JavaScript, which is switched off in your browser.",
+    "noScriptLink": "Contact us another way"
   },
   "how": {
     "eyebrow": "Process",
-    "title": "How it works with us",
+    "title": "How it works",
     "steps": [
       {
         "title": "Tell us what you need",
@@ -95,7 +97,7 @@
       },
       {
         "title": "Vet check, papers, delivery",
-        "text": "Everything arranged up to your stable."
+        "text": "Everything arranged, right up to your stable."
       }
     ]
   },
@@ -113,7 +115,7 @@
       },
       {
         "title": "Tryout with a Grand Prix rider",
-        "text": "Test ride and support at the tryout by a Grand Prix rider."
+        "text": "A Grand Prix rider rides the horse for you and supports you at the tryout."
       },
       {
         "title": "Partnership",
