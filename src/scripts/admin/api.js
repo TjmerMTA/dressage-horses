@@ -43,6 +43,11 @@ function humanMessage(status, server, retryAfter, path = "") {
   if (s.includes("server not configured")) return "The server is missing one of its settings (the admin password). Ask the developer to set it.";
   if (status === 0) return "Can't reach the server. Check the internet connection and try again.";
   if (status === 401) return "Your session has ended. Please log in again.";
+  if (path.startsWith("/admin/notion")) {
+    if (status === 429) return "Notion is busy. Try again in a minute.";
+    if (status === 503) return "Notion isn’t connected on the server yet.";
+    if (status >= 500) return `Notion didn’t answer properly (${server || status}). The leads are safe here; try again in a minute.`;
+  }
   if (status === 429) {
     const min = Math.max(1, Math.ceil(Number(retryAfter || 600) / 60));
     return `Too many attempts. Please wait about ${min} minute${min === 1 ? "" : "s"} and try again.`;
