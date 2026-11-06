@@ -44,3 +44,11 @@ notion, notion-settings.
 
 The job: estimated 8–15% of the week, 7.1% spent. The Notion addition: about 1.5% more.
 The week stood at 57% when the job began, 70% when it ended, and about 75% after Notion.
+
+## 2026-11-06 — moving the site to koni.quest
+koni.quest is at GoDaddy (bought 2026-11-05), showing GoDaddy's parking page. Commit `eea6ef5`
+(local, not pushed): CNAME, astro `site`, robots sitemap → koni.quest; Worker ALLOWED_ORIGINS
+gains koni.quest + www, keeps dev.siteboosty.com. Waiting on the person: GoDaddy DNS (4 A records
+185.199.108-111.153, www CNAME → tjmermta.github.io), then they run push + `wrangler deploy` +
+Pages cname=koni.quest (the guard refuses production deploys from the session).
+Transfer of the repo to the client's GitHub: not started, needs the client's GitHub login.
