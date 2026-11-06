@@ -11,7 +11,7 @@
 import { defineCollection } from 'astro:content';
 import { file, glob } from 'astro/loaders';
 import { z } from 'astro/zod';
-import { isOneEmojiOrNone } from './scripts/site-values.js';
+import { isOneEmojiOrNone, metaPixelId } from './scripts/site-values.js';
 
 const textFile = (name: string) =>
   file(`src/content/texts/${name}.json`, {
@@ -82,11 +82,6 @@ const home = defineCollection({
           send: z.string(),
           sendNoWhatsapp: z.string().optional(), // used while no WhatsApp number is set
         }),
-        thanksTitle: z.string(),
-        thanksNamed: z.string(), // "{name}" is replaced
-        thanksText: z.string(),
-        recap: z.object({ region: z.string(), budget: z.string(), format: z.string() }),
-        whatsappNow: z.string(),
         // Shown in the quiz box when JavaScript is off (the quiz is built by a script).
         noScript: z.string(),
         noScriptLink: z.string(),
@@ -121,6 +116,10 @@ const site = defineCollection({
         tiktok: z.string(),
         whatsapp: z.string(),
       }),
+      tracking: z.object({
+        // Meta (Facebook) Pixel id, digits only; empty = no pixel, no cookie banner.
+        metaPixelId: z.string().refine((v) => v.trim() === '' || metaPixelId(v) !== null, 'digits only (the Pixel ID from Meta Events Manager), or leave it empty'),
+      }),
       footer: z.object({
         title: z.string(),
         lead: z.string(),
@@ -138,6 +137,20 @@ const site = defineCollection({
         title: z.string(),
         lead: z.string(),
         home: z.string(),
+      }),
+      thanks: z.object({ // /thanks/, where the quiz sends the visitor after a successful send
+        metaTitle: z.string().min(1),
+        title: z.string().min(1),
+        text: z.string(),
+        instagramLead: z.string(), // shown before the Instagram link; the line is hidden while no link is set
+      }),
+      cookies: z.object({ // the consent banner, shown only while a Meta Pixel id is set
+        title: z.string().min(1),
+        text: z.string().min(1),
+        privacyLink: z.string().min(1),
+        accept: z.string().min(1),
+        decline: z.string().min(1),
+        change: z.string().min(1), // the button on /privacy/ that asks again
       }),
     }),
 });

@@ -10,6 +10,9 @@
     "tiktok": "https://www.tiktok.com/@koni_horses",
     "whatsapp": "https://wa.me/380989136445"
   },
+  "tracking": {
+    "metaPixelId": ""
+  },
   "footer": {
     "title": "Ready to find your horse?",
     "lead": "Take the quick quiz, or write directly.",
@@ -36,5 +39,19 @@
     "title": "This page does not exist",
     "lead": "The address may be mistyped, or the page has moved. Everything is on the home page.",
     "home": "GO TO THE HOME PAGE"
+  },
+  "thanks": {
+    "metaTitle": "Thank you — Dressage horses",
+    "title": "SUCCESS",
+    "text": "Thank you for filling the form. Our manager will text you in WhatsApp soon.",
+    "instagramLead": "Follow us on Instagram:"
+  },
+  "cookies": {
+    "title": "Cookies",
+    "text": "We would like to use the Meta Pixel to see which visits come from our Instagram and Facebook ads. It sets cookies and tells Meta which pages you open. Nothing from Meta loads unless you accept.",
+    "privacyLink": "Privacy policy",
+    "accept": "Accept",
+    "decline": "Decline",
+    "change": "Change your cookie choice"
   }
 }

@@ -49,12 +49,6 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
         </div>
         <div class="q-nav"><button type="button" class="link-btn" id="back" hidden>{quiz.back}</button></div>
       </div>
-      <div class="thanks" id="thanks" hidden>
-        <h3 tabindex="-1" id="thanks-h">{quiz.thanksTitle}</h3>
-        <p>{quiz.thanksText}</p>
-        <ul class="recap" id="recap"></ul>
-        {whatsappHref(site.links.whatsapp) && <a class="btn btn-sm" href={whatsappHref(site.links.whatsapp)}>{quiz.whatsappNow}</a>}
-      </div>
     </div>
   </div>
   <script type="application/json" id="quiz-data" set:html={json} />
@@ -76,8 +70,6 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
     submit: string;
     sending: string;
     errors: { name: string; whatsapp: string; consent: string; send: string };
-    thanksNamed: string;
-    recap: Record<StepKey, string>;
     endpoint: string;
   }
 
@@ -270,10 +262,13 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
         Q.endpoint ? { endpoint: Q.endpoint } : {},
       );
       if (result.ok) {
-        const w = window as unknown as { fbq?: (...a: unknown[]) => void; gtag?: (...a: unknown[]) => void };
-        try { if (w.fbq) w.fbq('track', 'Lead'); } catch (e) {}
-        try { if (w.gtag) w.gtag('event', 'generate_lead'); } catch (e) {}
-        showThanks();
+        // The thank-you page (src/pages/thanks.astro). "?sent=1" tells it this visit really
+        // follows a sent quiz, so the Meta Pixel's Lead is counted once and never for a
+        // reload or a direct visit; the page removes it from the address straight away.
+        // Coming back with the browser's Back button restores this page as it was left;
+        // the button must not stay on "Sending…".
+        addEventListener('pageshow', (e) => { if (e.persisted) { btn.disabled = false; btn.textContent = Q.submit; } }, { once: true });
+        location.assign('/thanks/?sent=1');
         return;
       }
       btn.disabled = false;
@@ -282,28 +277,6 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       else if (result.field === 'contact') { setFieldError(inputs.whatsapp, errs.whatsapp, Q.errors.whatsapp); inputs.whatsapp.focus(); }
       else errs.other.textContent = result.reason === 'rate-limited' || result.reason === 'network' ? result.message : Q.errors.send;
     };
-    const showThanks = () => {
-      (document.getElementById('quiz-flow') as HTMLElement).hidden = true;
-      const t = document.getElementById('thanks') as HTMLElement;
-      t.hidden = false;
-      const th = document.getElementById('thanks-h') as HTMLElement;
-      th.textContent = Q.thanksNamed.replace('{name}', answers.name);
-      const recap = document.getElementById('recap') as HTMLElement;
-      recap.replaceChildren();
-      const lines: [string, string][] = [
-        [Q.recap.region, answers.region], [Q.recap.budget, answers.budget], [Q.recap.format, answers.format],
-      ];
-      lines.forEach(([k, v]) => {
-        const li = el('li');
-        const b = el('b', '', k + ': ');
-        li.append(b, document.createTextNode(v));
-        recap.appendChild(li);
-      });
-      th.focus({ preventScroll: true });
-      (document.getElementById('quiz-box') as HTMLElement).scrollIntoView({ block: 'center' });
-    };
-
-
     go(0, false);
     measure();
     let measuredWidth = stepsEl.clientWidth;
@@ -355,9 +328,4 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
   .consent input { width: 1.25rem; height: 1.25rem; margin-block: 0.15rem 0; margin-inline: 0; accent-color: var(--accent); }
   .consent input[aria-invalid="true"] { outline: 2px solid var(--err); outline-offset: 2px; }
   .form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-block-start: 0.4rem; }
-  .thanks { text-align: center; padding-block: 1rem 0.4rem; padding-inline: 0; }
-  .thanks h3 { font-size: 1.8rem; margin-block-end: 0.8rem; }
-  .thanks p { color: var(--muted); max-width: 30rem; margin-block: 0 1.4rem; margin-inline: auto; }
-  .recap { list-style: none; margin-block: 0 1.6rem; margin-inline: auto; padding: 0; max-width: 24rem; text-align: start; display: grid; gap: 0.4rem; font-size: 0.95rem; }
-  .recap b { color: var(--text); }
 </style>

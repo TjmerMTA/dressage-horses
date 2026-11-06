@@ -8,7 +8,7 @@ import {
 import { buildFrontMatter, parseFrontMatter, valuesOf } from "./frontmatter.js";
 import { refreshGoLiveCount } from "./golive.js";
 import { trackCommit } from "./publish.js";
-import { IMPRINT_FIELDS, displayName, isOneEmojiOrNone, isSet, socialHref, unsetValues, whatsappHref } from "../site-values.js";
+import { IMPRINT_FIELDS, displayName, isOneEmojiOrNone, isSet, metaPixelId, socialHref, unsetValues, whatsappHref } from "../site-values.js";
 import { confirmDialog, errorBox, field, h, nextId, spinner, toast } from "./ui.js";
 
 let dirty = false;
@@ -64,7 +64,7 @@ export async function renderTexts(root, route = "") {
     ...md.filter((e) => e.name.endsWith(".md")).map((e) => ({ name: e.name, href: `#/texts/p/${e.name}` })),
   ].sort((a, b) => (TEXT_FILE_ORDER.indexOf(a.name) + 1 || 99) - (TEXT_FILE_ORDER.indexOf(b.name) + 1 || 99));
   const HINTS = {
-    "site.json": "Company name, WhatsApp number, Instagram and TikTok, footer.",
+    "site.json": "Company name, WhatsApp number, Instagram and TikTok, Meta Pixel ID, footer, thank-you page, cookie banner.",
     "home.json": "Everything on the page, including the quiz questions and their emoji.",
     "privacy.md": "The privacy policy page.",
     "imprint.md": "The imprint (company details) page.",
@@ -201,6 +201,24 @@ async function renderJsonFile(root, name, focus = "") {
       checks.push(() => {
         const v = f.input.value.trim();
         const msg = v && !socialHref(kind, v) ? `Paste the full address of the ${net} profile, for example ${kind === "instagram" ? "https://www.instagram.com/yourname" : "https://www.tiktok.com/@yourname"} — or leave it empty.` : "";
+        f.setError(msg);
+        return msg && f.input;
+      });
+      return f.wrap;
+    }
+
+    // The Meta Pixel id: digits only, or empty (then no pixel and no cookie banner).
+    if (name === "site.json" && pattern(path) === "tracking.metaPixelId") {
+      const shown = metaPixelId(value) || "";
+      const f = field({ label: "Meta Pixel ID", input: h("input", { type: "text", inputmode: "numeric", autocomplete: "off", spellcheck: "false", value: shown, placeholder: "e.g. 1234567890123456", dataset: { path: pattern(path) } }),
+        hint: `Where to find it: Meta Events Manager → Data sources → your pixel → the number shown under its name (“Pixel ID” or “Dataset ID”). ${shown
+          ? "Set: the site shows a cookie banner, and only after a visitor presses Accept it loads the pixel (PageView on every page, Lead on the thank-you page)."
+          : "Not set yet — the site loads nothing from Meta and shows no cookie banner."}` });
+      f.input.addEventListener("input", () => setAt(state, path, f.input.value.replace(/\s+/g, "")));
+      if (!shown && value) setAt(state, path, ""); // drop an old invalid value on save
+      checks.push(() => {
+        const v = f.input.value.replace(/\s+/g, "");
+        const msg = v && !metaPixelId(v) ? "The Pixel ID is a number: digits only, no letters or dashes (usually 15 or 16 digits). Copy it from Meta Events Manager — or leave it empty." : "";
         f.setError(msg);
         return msg && f.input;
       });

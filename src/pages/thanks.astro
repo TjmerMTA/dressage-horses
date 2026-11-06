@@ -1,0 +1,46 @@
+---
+// The thank-you page: where the quiz sends the visitor after a successful send
+// (src/components/Quiz.astro). Not for search engines: noindex here, and left out of the
+// sitemap (astro.config.mjs). Texts: site.json → "thanks", editable in the admin.
+// The Instagram line uses the same admin value as the footer's icon and is left out
+// while that value is empty.
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import { getSite } from '../lib/texts';
+import { socialHandle, socialHref } from '../scripts/site-values.js';
+
+const site = await getSite();
+const t = site.thanks;
+const ig = socialHref('instagram', site.links.instagram);
+---
+
+<BaseLayout title={t.metaTitle} description={t.text}>
+  <Fragment slot="head">
+    <meta name="robots" content="noindex" />
+    {/* Runs while the page is parsed, before the consent script: remembers for this page
+        view that the visitor came straight from a sent quiz (so the Meta Pixel's Lead is
+        counted once), and takes "?sent=1" out of the address so a reload does not count. */}
+    <script is:inline>
+      if (new URLSearchParams(location.search).get('sent') === '1') {
+        window.__dhLead = true;
+        history.replaceState(history.state, '', location.pathname + location.hash);
+      }
+    </script>
+  </Fragment>
+  <PageHeader title={t.title} lead={t.text} />
+  <main id="main" tabindex="-1">
+    <div class="wrap ty">
+      {ig && (
+        <p class="ty-ig">
+          {t.instagramLead} <a href={ig} target="_blank" rel="noopener">{socialHandle(ig)}</a>
+        </p>
+      )}
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .ty { padding-block: 2.6rem 5rem; }
+  .ty-ig { font-size: 1.15rem; }
+  .ty-ig a { color: var(--accent-text); font-weight: 700; text-underline-offset: 3px; }
+</style>
