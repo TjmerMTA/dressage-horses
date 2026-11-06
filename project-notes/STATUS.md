@@ -1,24 +1,13 @@
 # Status
 
-Notebook v1 — updated 2026-11-05 18:30
+Notebook v1 — updated 2026-11-06 16:50
 
-**Last time:** the client reported that the Notion screen would not work. The server shows
-nothing was ever saved — no key, no database. A real cause was found and fixed: both the
-panel and the Worker refused any key that was not `ntn_`/`secret_` + letters and digits, so
-a key in any other shape could not even be tried. Both now accept one word without spaces
-and let Notion judge it. Live: site `fcabbb9`, Worker `59c30687`; checked against the real
-Notion API with a hyphenated key — it reaches Notion and comes back with Notion's own answer.
-**Waiting on you:**
-1. the client to paste the Notion key and the database link into the admin's **Notion**
-   screen and press **Save** (or to give access by e-mail to nazar82666@gmail.com so it
-   can be done for him) — the code is live, the connection is not. If it refuses again,
-   the exact words on the screen are what is needed: nothing reaches the server, so there
-   is nothing to read from this end.
-2. the company's own facts: registered name, legal form, registered office, enterprise
-   number, VAT number, e-mail
-3. the client to choose A, B or neither at https://dev.siteboosty.com/sketch/photos/
-4. the client to say whether he wants the mock-up's original English back
-5. the privacy policy and the imprint to be read and ticked as reviewed
+**Last time:** the site moved to https://koni.quest (HTTPS on, dev.siteboosty.com no longer
+serves it); the thank-you page /thanks/ and the Meta Pixel setting (admin → Texts, behind a
+consent banner) are live, build `c02c905`.
+**Waiting on you:** the Meta Pixel id pasted in the admin; one real test lead from the site;
+the client's GitHub login for moving the repository; the older items below (company facts,
+photos A/B, privacy/imprint review).
 **Next:** nothing is running. The team is empty.
 
 ## What exists
@@ -44,11 +33,3 @@ notion, notion-settings.
 
 The job: estimated 8–15% of the week, 7.1% spent. The Notion addition: about 1.5% more.
 The week stood at 57% when the job began, 70% when it ended, and about 75% after Notion.
-
-## 2026-11-06 — moving the site to koni.quest
-koni.quest is at GoDaddy (bought 2026-11-05), showing GoDaddy's parking page. Commit `eea6ef5`
-(local, not pushed): CNAME, astro `site`, robots sitemap → koni.quest; Worker ALLOWED_ORIGINS
-gains koni.quest + www, keeps dev.siteboosty.com. Waiting on the person: GoDaddy DNS (4 A records
-185.199.108-111.153, www CNAME → tjmermta.github.io), then they run push + `wrangler deploy` +
-Pages cname=koni.quest (the guard refuses production deploys from the session).
-Transfer of the repo to the client's GitHub: not started, needs the client's GitHub login.
