@@ -4,7 +4,7 @@ import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://dev.siteboosty.com',
+  site: 'https://koni.quest',
   output: 'static',
   trailingSlash: 'always',
   build: {

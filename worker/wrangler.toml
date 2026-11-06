@@ -12,7 +12,7 @@ enabled = true
 
 [vars]
 # Comma-separated list of origins allowed to call this API from a browser.
-ALLOWED_ORIGINS = "https://dev.siteboosty.com"
+ALLOWED_ORIGINS = "https://koni.quest,https://www.koni.quest,https://dev.siteboosty.com"
 GITHUB_REPO = "TjmerMTA/dressage-horses"
 GITHUB_BRANCH = "main"
 # Notion is set up from the admin panel's "Notion" screen (stored in KV, `notion:config`).
