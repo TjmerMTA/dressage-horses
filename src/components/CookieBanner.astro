@@ -1,16 +1,21 @@
 ---
-// The cookie consent banner and the Meta Pixel behind it. BaseLayout renders this only
-// while site.json has a Meta Pixel id (src/scripts/site-values.js → metaPixelId), so a
-// site without an id has no banner and loads nothing from Meta.
+// The cookie consent banner, the Meta Pixel behind it, and the thank-you page code (lead
+// tracking tags from other ad services). BaseLayout renders this only while site.json has
+// a Meta Pixel id or a thank-you page code (src/scripts/site-values.js → metaPixelId,
+// thanksCode), so a site with neither has no banner and loads nothing.
 //
-// Nothing from Meta loads before the visitor presses Accept. The choice is kept in
-// localStorage ("dh-cookie-consent": "accepted" | "declined"); Decline means the pixel is
-// never loaded, on any page, until the visitor changes the choice on /privacy/ (any
-// element with [data-cookie-change] reopens the banner). Without JavaScript the banner
-// stays hidden and nothing loads, which is the same as Decline.
+// Nothing loads before the visitor presses Accept. The choice is kept in localStorage
+// ("dh-cookie-consent": "accepted" | "declined"); Decline means nothing is ever loaded, on
+// any page, until the visitor changes the choice on /privacy/ (any element with
+// [data-cookie-change] reopens the banner). Without JavaScript the banner stays hidden and
+// nothing loads, which is the same as Decline.
 //
-// After Accept: PageView on every page; Lead once, on /thanks/, only when the visit came
-// straight from a sent quiz (the page sets window.__dhLead, see src/pages/thanks.astro).
+// After Accept: Meta PageView on every page (while an id is set). On /thanks/, only when the
+// visit came straight from a sent quiz (the page sets window.__dhLead, see
+// src/pages/thanks.astro), once: the Meta Lead, and the thank-you page code, which the page
+// carries as inert JSON in #ty-code. Its <script> tags are re-created so they run, one after
+// the other in their order (a src script without `async` is waited for); other HTML (img and
+// noscript pixels) is inserted as it is.
 import { getSite } from '../lib/texts';
 
 interface Props {
@@ -41,11 +46,9 @@ const { cookies: t } = await getSite();
   const read = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
   const write = (v: string) => { try { localStorage.setItem(KEY, v); } catch { /* private mode: asked again next page */ } };
 
-  let loaded = false;
   // Meta's standard base code, written out: a queue that fbevents.js picks up when it arrives.
-  const load = () => {
-    if (loaded || !/^\d{6,20}$/.test(pixel)) return;
-    loaded = true;
+  const loadPixel = (lead: boolean) => {
+    if (!/^\d{6,20}$/.test(pixel)) return;
     if (!w.fbq) {
       const q = function (...args: unknown[]) {
         if (q.callMethod) q.callMethod(...args);
@@ -61,7 +64,60 @@ const { cookies: t } = await getSite();
     }
     w.fbq('init', pixel);
     w.fbq('track', 'PageView');
-    if (w.__dhLead) { w.__dhLead = false; w.fbq('track', 'Lead'); }
+    if (lead) w.fbq('track', 'Lead');
+  };
+
+  // A script made by innerHTML never runs; a fresh copy of it does.
+  const fresh = (old: HTMLScriptElement) => {
+    const s = document.createElement('script');
+    for (const a of Array.from(old.attributes)) s.setAttribute(a.name, a.value);
+    s.text = old.text;
+    return s;
+  };
+
+  // The thank-you page code, appended at the end of <body>, node by node in its own order.
+  const runThanksCode = async () => {
+    const data = document.getElementById('ty-code');
+    if (!data) return;
+    let code = '';
+    try { code = JSON.parse(data.textContent || '""'); } catch { return; }
+    const tpl = document.createElement('template');
+    tpl.innerHTML = code; // inert: nothing in a template runs or loads
+    const host = document.createElement('div');
+    host.className = 'ty-tags';
+    host.hidden = true;
+    document.body.appendChild(host);
+    for (const node of Array.from(tpl.content.childNodes)) {
+      if (node instanceof HTMLScriptElement) {
+        const s = fresh(node);
+        const wait = s.src && !node.hasAttribute('async') && !node.hasAttribute('defer') && s.type !== 'module';
+        if (s.src) s.async = node.hasAttribute('async'); // keep order among src scripts
+        const done = wait ? new Promise((r) => { s.onload = s.onerror = r; }) : null;
+        host.appendChild(s);
+        if (done) await done;
+      } else {
+        if (node instanceof Element) {
+          // A template parses <noscript> as if scripts were off, so its fallback img would load
+          // (and count the lead twice). Keep it as the browser does with scripts on: plain text.
+          const inert = (o: Element) => { const n = document.createElement('noscript'); n.textContent = o.innerHTML; return n; };
+          if (node.localName === 'noscript') { host.appendChild(inert(node)); continue; }
+          node.querySelectorAll('noscript').forEach((o) => o.replaceWith(inert(o)));
+          // Scripts nested inside other tags: fresh copies, run as the tag is inserted.
+          node.querySelectorAll('script').forEach((o) => o.replaceWith(fresh(o)));
+        }
+        host.appendChild(node);
+      }
+    }
+  };
+
+  let loaded = false;
+  const load = () => {
+    if (loaded) return;
+    loaded = true;
+    const lead = Boolean(w.__dhLead);
+    w.__dhLead = false; // once per page view; the page has already removed ?sent=1
+    loadPixel(lead);
+    if (lead) void runThanksCode();
   };
 
   // Meta's own first-party cookies, removed when someone who had accepted declines.

@@ -7,19 +7,24 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PageHeader from '../components/PageHeader.astro';
 import { getSite } from '../lib/texts';
-import { socialHandle, socialHref } from '../scripts/site-values.js';
+import { socialHandle, socialHref, thanksCode } from '../scripts/site-values.js';
 
 const site = await getSite();
 const t = site.thanks;
 const ig = socialHref('instagram', site.links.instagram);
+// The ad services' lead code from the admin, as inert data: a JSON string inside a
+// non-executing script tag ("<" escaped, so nothing in it can close the tag or the page).
+// CookieBanner.astro runs it once per sent quiz, only after Accept.
+const code = thanksCode(site.tracking.thanksCode);
+const codeJson = code && JSON.stringify(code).replace(/</g, '\\u003c');
 ---
 
 <BaseLayout title={t.metaTitle} description={t.text} shortFooter>
   <Fragment slot="head">
     <meta name="robots" content="noindex" />
     {/* Runs while the page is parsed, before the consent script: remembers for this page
-        view that the visitor came straight from a sent quiz (so the Meta Pixel's Lead is
-        counted once), and takes "?sent=1" out of the address so a reload does not count. */}
+        view that the visitor came straight from a sent quiz (so the Meta Pixel's Lead and the
+        thank-you page code are counted once), and takes "?sent=1" out of the address so a reload does not count. */}
     <script is:inline>
       if (new URLSearchParams(location.search).get('sent') === '1') {
         window.__dhLead = true;
@@ -36,6 +41,7 @@ const ig = socialHref('instagram', site.links.instagram);
         </p>
       )}
     </div>
+    {codeJson && <script is:inline type="application/json" id="ty-code" set:html={codeJson} />}
   </main>
 </BaseLayout>
 

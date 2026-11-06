@@ -11,7 +11,7 @@
 import { defineCollection } from 'astro:content';
 import { file, glob } from 'astro/loaders';
 import { z } from 'astro/zod';
-import { isOneEmojiOrNone, metaPixelId } from './scripts/site-values.js';
+import { THANKS_CODE_MAX, isOneEmojiOrNone, metaPixelId } from './scripts/site-values.js';
 
 const textFile = (name: string) =>
   file(`src/content/texts/${name}.json`, {
@@ -119,6 +119,9 @@ const site = defineCollection({
       tracking: z.object({
         // Meta (Facebook) Pixel id, digits only; empty = no pixel, no cookie banner.
         metaPixelId: z.string().refine((v) => v.trim() === '' || metaPixelId(v) !== null, 'digits only (the Pixel ID from Meta Events Manager), or leave it empty'),
+        // HTML from an ad service (Google Ads, TikTok, …) for a lead; runs only on /thanks/, after
+        // a sent quiz and the visitor's Accept. Empty = none. Its own presence turns the banner on.
+        thanksCode: z.string().max(THANKS_CODE_MAX),
       }),
       footer: z.object({
         title: z.string(),
@@ -144,7 +147,7 @@ const site = defineCollection({
         text: z.string(),
         instagramLead: z.string(), // shown before the Instagram link; the line is hidden while no link is set
       }),
-      cookies: z.object({ // the consent banner, shown only while a Meta Pixel id is set
+      cookies: z.object({ // the consent banner, shown only while a Meta Pixel id or a thank-you page code is set
         title: z.string().min(1),
         text: z.string().min(1),
         privacyLink: z.string().min(1),

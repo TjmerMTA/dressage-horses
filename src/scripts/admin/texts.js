@@ -8,7 +8,7 @@ import {
 import { buildFrontMatter, parseFrontMatter, valuesOf } from "./frontmatter.js";
 import { refreshGoLiveCount } from "./golive.js";
 import { trackCommit } from "./publish.js";
-import { IMPRINT_FIELDS, displayName, isOneEmojiOrNone, isSet, metaPixelId, socialHref, unsetValues, whatsappHref } from "../site-values.js";
+import { IMPRINT_FIELDS, THANKS_CODE_MAX, displayName, isOneEmojiOrNone, isSet, looksLikeMetaPixel, metaPixelId, socialHref, thanksCode, unsetValues, whatsappHref } from "../site-values.js";
 import { confirmDialog, errorBox, field, h, nextId, spinner, toast } from "./ui.js";
 
 let dirty = false;
@@ -213,7 +213,7 @@ async function renderJsonFile(root, name, focus = "") {
       const f = field({ label: "Meta Pixel ID", input: h("input", { type: "text", inputmode: "numeric", autocomplete: "off", spellcheck: "false", value: shown, placeholder: "e.g. 1234567890123456", dataset: { path: pattern(path) } }),
         hint: `Where to find it: Meta Events Manager → Data sources → your pixel → the number shown under its name (“Pixel ID” or “Dataset ID”). ${shown
           ? "Set: the site shows a cookie banner, and only after a visitor presses Accept it loads the pixel (PageView on every page, Lead on the thank-you page)."
-          : "Not set yet — the site loads nothing from Meta and shows no cookie banner."}` });
+          : "Not set yet — the site loads nothing from Meta (and shows no cookie banner, unless a thank-you page code is set below)."}` });
       f.input.addEventListener("input", () => setAt(state, path, f.input.value.replace(/\s+/g, "")));
       if (!shown && value) setAt(state, path, ""); // drop an old invalid value on save
       checks.push(() => {
@@ -221,6 +221,26 @@ async function renderJsonFile(root, name, focus = "") {
         const msg = v && !metaPixelId(v) ? "The Pixel ID is a number: digits only, no letters or dashes (usually 15 or 16 digits). Copy it from Meta Events Manager — or leave it empty." : "";
         f.setError(msg);
         return msg && f.input;
+      });
+      return f.wrap;
+    }
+
+    // Code for the thank-you page: HTML from an ad service, kept exactly as pasted (trimmed).
+    if (name === "site.json" && pattern(path) === "tracking.thanksCode") {
+      const input = h("textarea", { rows: 8, class: "adm-code", spellcheck: "false", autocomplete: "off", autocapitalize: "off", dataset: { path: pattern(path) },
+        placeholder: "<script>…</script>" }, value);
+      const f = field({ label: "Code for the thank-you page (lead tracking)", input,
+        hint: `Paste the code your ad service gives you for a conversion/lead (Google Ads, TikTok, etc.). The Meta Pixel Lead is already sent automatically — do not paste Meta’s code here. ${thanksCode(value)
+          ? "Set: the site shows a cookie banner; the code runs on the thank-you page once per sent quiz, and only after the visitor presses Accept."
+          : "Empty: nothing extra runs on the thank-you page."}` });
+      input.addEventListener("input", () => setAt(state, path, input.value.trim()));
+      checks.push(() => {
+        const v = input.value.trim();
+        const msg = v.length > THANKS_CODE_MAX ? `This code is too long (over ${THANKS_CODE_MAX.toLocaleString("en")} characters).`
+          : looksLikeMetaPixel(v) ? "This looks like Meta Pixel code. The site already sends the Meta Pixel Lead by itself — put the Pixel ID in “Meta Pixel ID” above and remove Meta’s code from here."
+          : "";
+        f.setError(msg);
+        return msg && input;
       });
       return f.wrap;
     }

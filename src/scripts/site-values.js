@@ -27,6 +27,24 @@ export function metaPixelId(value) {
   return /^\d{6,20}$/.test(s) ? s : null;
 }
 
+/** Longest thank-you page code the admin and the build accept (characters). */
+export const THANKS_CODE_MAX = 20000;
+
+/**
+ * The code for the thank-you page (site.json → tracking.thanksCode): the HTML an ad service
+ * gives for a conversion / lead (script tags, img or noscript pixels), trimmed, or null when
+ * empty. null means: no such code; with no Meta Pixel id either, no cookie banner at all.
+ */
+export function thanksCode(value) {
+  const s = String(value == null ? "" : value).trim();
+  return s ? s : null;
+}
+
+/** True when pasted code looks like Meta's own pixel code, which the site already sends itself. */
+export function looksLikeMetaPixel(code) {
+  return /connect\.facebook\.net|facebook\.com\/tr|\bfbq\s*\(/i.test(String(code || ""));
+}
+
 /** "https://www.instagram.com/koni__horses/" → "@koni__horses" (the link text on /thanks/). */
 export function socialHandle(href) {
   try {
@@ -96,7 +114,7 @@ export function unsetValues({ site, imprint, privacy }) {
     }
     if (!socialHref("instagram", site.links && site.links.instagram)) add("instagram", "Instagram link", "Meanwhile the footer shows no Instagram icon, and the thank-you page has no “Follow us on Instagram” line.", "site.json", "links.instagram");
     if (!socialHref("tiktok", site.links && site.links.tiktok)) add("tiktok", "TikTok link", "Meanwhile the footer shows no TikTok icon.", "site.json", "links.tiktok");
-    if (!metaPixelId(site.tracking && site.tracking.metaPixelId)) add("metaPixel", "Meta Pixel ID", "Meanwhile nothing from Meta loads, there is no cookie banner, and Meta receives no PageView or Lead events from the site.", "site.json", "tracking.metaPixelId");
+    if (!metaPixelId(site.tracking && site.tracking.metaPixelId)) add("metaPixel", "Meta Pixel ID", "Meanwhile nothing from Meta loads and Meta receives no PageView or Lead events from the site. (The cookie banner then appears only if a thank-you page code is set.)", "site.json", "tracking.metaPixelId");
   }
   if (imprint) {
     for (const [key, label] of IMPRINT_FIELDS) {

@@ -11,7 +11,8 @@
     "whatsapp": "https://wa.me/380989136445"
   },
   "tracking": {
-    "metaPixelId": ""
+    "metaPixelId": "",
+    "thanksCode": ""
   },
   "footer": {
     "title": "Ready to find your horse?",
@@ -48,7 +49,7 @@
   },
   "cookies": {
     "title": "Cookies",
-    "text": "We would like to use the Meta Pixel to see which visits come from our Instagram and Facebook ads. It sets cookies and tells Meta which pages you open. Nothing from Meta loads unless you accept.",
+    "text": "We would like to use advertising tools such as the Meta Pixel to see which visits and requests come from our ads. They set cookies and tell the advertising services which pages you open. Nothing from them loads unless you accept.",
     "privacyLink": "Privacy policy",
     "accept": "Accept",
     "decline": "Decline",
