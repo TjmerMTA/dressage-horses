@@ -12,3 +12,4 @@ Notebook v1 — updated 2026-11-06
 - Side effect: the privacy text's "When you visit the website" paragraph moved from privacy.md
   (admin-editable) into privacy.astro, because its wording depends on whether a pixel is on.
 - Cost: one M piece, opus/medium.
+- 2026-11-06: /thanks/ footer shortened at the client's request (no photo, heading or quiz button).
