@@ -13,3 +13,4 @@ Notebook v1 — updated 2026-11-06
   (admin-editable) into privacy.astro, because its wording depends on whether a pixel is on.
 - Cost: one M piece, opus/medium.
 - 2026-11-06: /thanks/ footer shortened at the client's request (no photo, heading or quiz button).
+- 2026-11-06: thanks-code — admin field tracking.thanksCode (lead-tracking code for /thanks/, after consent, once per lead; Meta code refused to avoid double Lead). Merged 9e765fd.
