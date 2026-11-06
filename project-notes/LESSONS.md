@@ -36,3 +36,5 @@ Notebook v1 — updated 2026-11-05
 - 2026-11-05 — `bash worker/test.sh` while a `wrangler dev` of the same Worker is running on
   8787 gives 79 false failures. Stop the dev server first. Evidence: 248/79 with it up,
   327/0 straight after.
+
+- 2026-11-06: GitHub Pages was slow (deploy step 10–12 min; one run hit its timeout and failed, run 42236846635). Not our code: the next push published fine. A save in the admin may take minutes, not one, on such days.
