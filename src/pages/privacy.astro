@@ -6,13 +6,14 @@
 //   - the draft note, shown until the admin sets `reviewed: true` in privacy.md
 //   - who the controller is: the company's details once they are in imprint.md
 //   - how to reach us about your data: WhatsApp and e-mail once they are set; the quiz always
-//   - "When you visit the website", and the Meta Pixel paragraph, which exists only while a
-//     Meta Pixel id is set in site.json (the site then has a cookie banner, CookieBanner.astro)
+//   - "When you visit the website", the Meta Pixel paragraph (only while a Meta Pixel id is set
+//     in site.json) and the advertisers' conversion tags sentence (only while a thank-you page
+//     code is set); with either, the site has a cookie banner (CookieBanner.astro)
 import { getEntry, render } from 'astro:content';
 import LegalPage from '../components/LegalPage.astro';
 import { formatDay, getLegalFacts, listText, lowerFirst } from '../lib/legal';
 import { getSite } from '../lib/texts';
-import { metaPixelId } from '../scripts/site-values.js';
+import { metaPixelId, thanksCode } from '../scripts/site-values.js';
 
 const entry = await getEntry('pages', 'privacy');
 if (!entry) throw new Error('src/content/pages/privacy.md is missing');
@@ -30,6 +31,8 @@ const missingText = listText(missing.map(lowerFirst));
 const direct = Boolean(whatsapp || email);
 const site = await getSite();
 const pixel = Boolean(metaPixelId(site.tracking.metaPixelId));
+const tags = Boolean(thanksCode(site.tracking.thanksCode));
+const consent = pixel || tags;
 ---
 
 <LegalPage entry={entry}>
@@ -81,14 +84,16 @@ const pixel = Boolean(metaPixelId(site.tracking.metaPixelId));
   {direct && <p>We answer every request about your data within one month, as the GDPR requires.</p>}
 
   <h2>What we collect</h2>
-  {pixel ? (
+  {consent ? (
     <p>
       <strong>When you visit the website.</strong> The website is a static site hosted on GitHub Pages (GitHub, Inc.). Like
       every web server, GitHub’s servers process your IP address and basic technical information about your request, such as
       your browser type, to deliver the page and keep the service secure. The website sets no cookies of its own and uses no
       analytics tools. It keeps one note in your browser’s storage: whether you accepted or declined cookies in the banner,
-      so that it does not ask again on every page. The one advertising tool it can use is the Meta Pixel, described next, and
-      only if you accept it.
+      so that it does not ask again on every page. {pixel && tags
+        ? 'The advertising tools it can use are the Meta Pixel and the conversion tags of our advertisers, described next, and only if you accept them.'
+        : pixel ? 'The one advertising tool it can use is the Meta Pixel, described next, and only if you accept it.'
+        : 'The advertising tools it can use are the conversion tags of our advertisers, described next, and only if you accept them.'}
     </p>
   ) : (
     <p>
@@ -117,11 +122,20 @@ const pixel = Boolean(metaPixelId(site.tracking.metaPixelId));
         Meta may process it outside the European Economic Area, including in the United States. If you press Decline,
         nothing from Meta is loaded, on any page.
       </p>
-      <p>
-        You can change your choice at any time; declining later also removes the Meta Pixel’s cookies from this website.
-        <button type="button" class="btn btn-ghost btn-sm ck-change" data-cookie-change hidden>{site.cookies.change}</button>
-      </p>
     </>
+  )}
+  {tags && (
+    <p id="conversion-tags">
+      <strong>Our advertisers’ conversion tags, only if you accept them.</strong> After you accept cookies in the banner, the
+      page you see after sending the quiz may load the conversion tags of the advertising services we use, to tell them that
+      a request was sent; these services may set their own cookies. If you press Decline, none of these tags is loaded.
+    </p>
+  )}
+  {consent && (
+    <p>
+      You can change your choice at any time{pixel ? '; declining later also removes the Meta Pixel’s cookies from this website' : ''}.
+      <button type="button" class="btn btn-ghost btn-sm ck-change" data-cookie-change hidden>{site.cookies.change}</button>
+    </p>
   )}
 
   <Content />
