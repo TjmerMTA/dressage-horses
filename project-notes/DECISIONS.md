@@ -86,3 +86,14 @@ anyone with access to the Cloudflare account can read it in the KV browser. A se
 cannot be written from a Worker, and the whole point was to stop needing a deploy.
 Revisit when: the client wants the key out of KV — then it goes back to
 `wrangler secret put NOTION_TOKEN` and the admin screen only shows the names.
+
+## 2026-11-06 — "Pixel" means the Meta Pixel, behind a consent banner
+Asked by the person: "добавь страницу спасибо + в админку настройки для пикселя". Chose the Meta
+Pixel (traffic comes from Instagram), stored as `tracking.metaPixelId` in site.json, edited on
+the admin's Texts screen. EU site, so it loads only after Accept. "Follow is in Instagram"
+corrected to "Follow us on Instagram". Chosen by the director; say if not.
+Revisit when: the client wants TikTok or Google tags too.
+
+## 2026-11-06 — The site lives at koni.quest
+The client's domain (GoDaddy). GitHub Pages holds one custom domain, so dev.siteboosty.com
+no longer serves the site. Worker ALLOWED_ORIGINS keeps it for now.
