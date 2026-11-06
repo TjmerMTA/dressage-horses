@@ -1,0 +1,123 @@
+---
+// The cookie consent banner and the Meta Pixel behind it. BaseLayout renders this only
+// while site.json has a Meta Pixel id (src/scripts/site-values.js → metaPixelId), so a
+// site without an id has no banner and loads nothing from Meta.
+//
+// Nothing from Meta loads before the visitor presses Accept. The choice is kept in
+// localStorage ("dh-cookie-consent": "accepted" | "declined"); Decline means the pixel is
+// never loaded, on any page, until the visitor changes the choice on /privacy/ (any
+// element with [data-cookie-change] reopens the banner). Without JavaScript the banner
+// stays hidden and nothing loads, which is the same as Decline.
+//
+// After Accept: PageView on every page; Lead once, on /thanks/, only when the visit came
+// straight from a sent quiz (the page sets window.__dhLead, see src/pages/thanks.astro).
+import { getSite } from '../lib/texts';
+
+interface Props {
+  pixelId: string;
+}
+
+const { pixelId } = Astro.props;
+const { cookies: t } = await getSite();
+---
+
+<section class="ck" id="ck" data-pixel={pixelId} role="region" aria-labelledby="ck-h" hidden>
+  <h2 class="ck-title" id="ck-h" tabindex="-1">{t.title}</h2>
+  <p class="ck-text">{t.text} <a href="/privacy/">{t.privacyLink}</a></p>
+  <div class="ck-actions">
+    <button type="button" class="btn btn-sm" data-choice="accepted">{t.accept}</button>
+    <button type="button" class="btn btn-sm" data-choice="declined">{t.decline}</button>
+  </div>
+</section>
+
+<script>
+  const KEY = 'dh-cookie-consent';
+  const box = document.getElementById('ck');
+  const pixel = box?.dataset.pixel || '';
+
+  type Fbq = ((...a: unknown[]) => void) & { callMethod?: (...a: unknown[]) => void; queue: unknown[][]; push: Fbq; loaded: boolean; version: string };
+  const w = window as unknown as { fbq?: Fbq; _fbq?: Fbq; __dhLead?: boolean };
+
+  const read = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
+  const write = (v: string) => { try { localStorage.setItem(KEY, v); } catch { /* private mode: asked again next page */ } };
+
+  let loaded = false;
+  // Meta's standard base code, written out: a queue that fbevents.js picks up when it arrives.
+  const load = () => {
+    if (loaded || !/^\d{6,20}$/.test(pixel)) return;
+    loaded = true;
+    if (!w.fbq) {
+      const q = function (...args: unknown[]) {
+        if (q.callMethod) q.callMethod(...args);
+        else q.queue.push(args);
+      } as Fbq;
+      q.push = q; q.loaded = true; q.version = '2.0'; q.queue = [];
+      w.fbq = q;
+      if (!w._fbq) w._fbq = q;
+      const s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://connect.facebook.net/en_US/fbevents.js';
+      document.head.appendChild(s);
+    }
+    w.fbq('init', pixel);
+    w.fbq('track', 'PageView');
+    if (w.__dhLead) { w.__dhLead = false; w.fbq('track', 'Lead'); }
+  };
+
+  // Meta's own first-party cookies, removed when someone who had accepted declines.
+  const forget = () => {
+    const parts = location.hostname.split('.');
+    const domains = ['', ...parts.map((_, i) => '.' + parts.slice(i).join('.')).slice(0, -1)];
+    for (const name of ['_fbp', '_fbc']) {
+      for (const d of domains) document.cookie = `${name}=; Max-Age=0; path=/${d ? `; domain=${d}` : ''}`;
+    }
+  };
+
+  if (box) {
+    let opener: HTMLElement | null = null;
+    const show = (from: HTMLElement | null) => {
+      opener = from;
+      box.hidden = false;
+      if (from) (document.getElementById('ck-h') as HTMLElement).focus();
+    };
+    const hide = () => {
+      const hadFocus = box.contains(document.activeElement);
+      box.hidden = true;
+      if (hadFocus) (opener || document.getElementById('main'))?.focus();
+    };
+
+    box.querySelectorAll<HTMLButtonElement>('[data-choice]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const before = read();
+        const choice = b.dataset.choice as string;
+        write(choice);
+        hide();
+        if (choice === 'accepted') load();
+        else {
+          w.__dhLead = false;
+          // Already loaded on this page: a reload is the only way to unload it.
+          if (before === 'accepted' || loaded) { forget(); location.reload(); }
+        }
+      }),
+    );
+    document.querySelectorAll<HTMLElement>('[data-cookie-change]').forEach((b) => {
+      b.hidden = false;
+      b.addEventListener('click', () => show(b));
+    });
+
+    const choice = read();
+    if (choice === 'accepted') load();
+    else if (choice !== 'declined') show(null);
+  }
+</script>
+
+<style>
+  .ck { position: fixed; z-index: 10; inset-inline: 1rem; inset-block-end: calc(1rem + env(safe-area-inset-bottom, 0px)); max-inline-size: 30rem; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 22px; padding: 1.2rem 1.3rem; box-shadow: 0 10px 40px rgba(41,19,5,.16); }
+  @media (min-width: 600px) { .ck { inset-inline-end: auto; padding: 1.4rem 1.6rem; } }
+  .ck-title { font-size: 1.25rem; margin-block-end: 0.5rem; }
+  .ck-title:focus { outline: none; }
+  .ck-title:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .ck-text { font-size: 0.92rem; color: var(--muted); }
+  .ck-text a { color: var(--accent-text); font-weight: 600; text-underline-offset: 3px; }
+  .ck-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-block-start: 1rem; }
+</style>

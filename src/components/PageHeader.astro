@@ -4,7 +4,7 @@
 import SiteTop from './SiteTop.astro';
 
 interface Props {
-  eyebrow: string;
+  eyebrow?: string | undefined;
   title: string;
   lead?: string | undefined;
 }
@@ -16,7 +16,7 @@ const { eyebrow, title, lead } = Astro.props;
   <div class="wrap">
     <SiteTop />
     <div class="page-main">
-      <div class="eyebrow">{eyebrow}</div>
+      {eyebrow && <div class="eyebrow">{eyebrow}</div>}
       <h1>{title}</h1>
       {lead && <p class="lead">{lead}</p>}
     </div>

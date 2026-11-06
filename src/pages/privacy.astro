@@ -6,9 +6,13 @@
 //   - the draft note, shown until the admin sets `reviewed: true` in privacy.md
 //   - who the controller is: the company's details once they are in imprint.md
 //   - how to reach us about your data: WhatsApp and e-mail once they are set; the quiz always
+//   - "When you visit the website", and the Meta Pixel paragraph, which exists only while a
+//     Meta Pixel id is set in site.json (the site then has a cookie banner, CookieBanner.astro)
 import { getEntry, render } from 'astro:content';
 import LegalPage from '../components/LegalPage.astro';
 import { formatDay, getLegalFacts, listText, lowerFirst } from '../lib/legal';
+import { getSite } from '../lib/texts';
+import { metaPixelId } from '../scripts/site-values.js';
 
 const entry = await getEntry('pages', 'privacy');
 if (!entry) throw new Error('src/content/pages/privacy.md is missing');
@@ -24,6 +28,8 @@ const number = fact('enterpriseNumber');
 const one = missing.length === 1;
 const missingText = listText(missing.map(lowerFirst));
 const direct = Boolean(whatsapp || email);
+const site = await getSite();
+const pixel = Boolean(metaPixelId(site.tracking.metaPixelId));
 ---
 
 <LegalPage entry={entry}>
@@ -74,5 +80,54 @@ const direct = Boolean(whatsapp || email);
   )}
   {direct && <p>We answer every request about your data within one month, as the GDPR requires.</p>}
 
+  <h2>What we collect</h2>
+  {pixel ? (
+    <p>
+      <strong>When you visit the website.</strong> The website is a static site hosted on GitHub Pages (GitHub, Inc.). Like
+      every web server, GitHub’s servers process your IP address and basic technical information about your request, such as
+      your browser type, to deliver the page and keep the service secure. The website sets no cookies of its own and uses no
+      analytics tools. It keeps one note in your browser’s storage: whether you accepted or declined cookies in the banner,
+      so that it does not ask again on every page. The one advertising tool it can use is the Meta Pixel, described next, and
+      only if you accept it.
+    </p>
+  ) : (
+    <p>
+      <strong>When you visit the website.</strong> The website is a static site hosted on GitHub Pages (GitHub, Inc.). It sets
+      no cookies, stores nothing in your browser and uses no analytics, advertising or tracking tools. Like every web server,
+      GitHub’s servers process your IP address and basic technical information about your request, such as your browser
+      type, to deliver the page and keep the service secure.
+    </p>
+  )}
+  {pixel && (
+    <>
+      <p id="meta-pixel">
+        <strong>The Meta Pixel, only if you accept it.</strong> When you open the website, a banner asks whether we may use the
+        Meta Pixel, a tool of Meta Platforms Ireland Ltd. (the company behind Facebook and Instagram). Until you press Accept,
+        nothing from Meta is loaded. If you accept, your browser loads the pixel from Meta’s servers (connect.facebook.net);
+        it sets cookies such as <code>_fbp</code> and sends Meta the address of each page you open, your IP address and
+        information about your browser and device, and, on the page you see after sending the quiz, the fact that a request
+        was sent. Your answers, your name and your WhatsApp number are never sent to Meta. If you have a Facebook or
+        Instagram account, Meta can link this to it.
+      </p>
+      <p>
+        We use it to see which visits and requests come from our adverts on Instagram and Facebook, and to improve who those
+        adverts are shown to. The legal basis is your consent (Article 6(1)(a) GDPR, and the Belgian rules on cookies). We
+        and Meta are jointly responsible for collecting this data and sending it to Meta; what Meta does with it afterwards
+        is Meta’s own responsibility, as described in <a href="https://www.facebook.com/privacy/policy/" target="_blank" rel="noopener">Meta’s privacy policy</a>.
+        Meta may process it outside the European Economic Area, including in the United States. If you press Decline,
+        nothing from Meta is loaded, on any page.
+      </p>
+      <p>
+        You can change your choice at any time; declining later also removes the Meta Pixel’s cookies from this website.
+        <button type="button" class="btn btn-ghost btn-sm ck-change" data-cookie-change hidden>{site.cookies.change}</button>
+      </p>
+    </>
+  )}
+
   <Content />
 </LegalPage>
+
+<style>
+  .ck-change { display: flex; margin-block-start: 0.8rem; }
+  .ck-change[hidden] { display: none; }
+</style>

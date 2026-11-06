@@ -94,15 +94,6 @@
       "send": "Something went wrong. Please try again, or write on WhatsApp.",
       "sendNoWhatsapp": "Something went wrong. Please try again in a moment."
     },
-    "thanksTitle": "Thank you!",
-    "thanksNamed": "Thank you, {name}!",
-    "thanksText": "We have received your request. You will get a message on WhatsApp soon.",
-    "recap": {
-      "region": "Region",
-      "budget": "Budget",
-      "format": "Buying"
-    },
-    "whatsappNow": "Write on WhatsApp now",
     "noScript": "This quiz needs JavaScript, which is switched off in your browser.",
     "noScriptLink": "Write to us on WhatsApp",
     "noScriptEmail": "Write to us by e-mail",

@@ -7,12 +7,11 @@ reviewed: false
 ---
 
 <!-- Above this text the page adds, by itself: the draft note (until "reviewed" is true),
-     "Who is responsible" and "How to reach us about your data". They are filled in from the
-     imprint's company details and the site's WhatsApp link, so they change when those do. -->
-
-## What we collect
-
-**When you visit the website.** The website is a static site hosted on GitHub Pages (GitHub, Inc.). It sets no cookies, stores nothing in your browser and uses no analytics, advertising or tracking tools. Like every web server, GitHub’s servers process your IP address and basic technical information about your request, such as your browser type, to deliver the page and keep the service secure.
+     "Who is responsible", "How to reach us about your data", and the heading "What we
+     collect" with the paragraph "When you visit the website" (and, while a Meta Pixel id is
+     set in the admin, the paragraph about the Meta Pixel and cookies). They are filled in
+     from the imprint's company details, the site's WhatsApp link and the Meta Pixel id, so
+     they change when those do. This text continues "What we collect". -->
 
 **When you send the quiz.** What you enter goes from your browser to a small program we run on Cloudflare (a Cloudflare Worker, operated by Cloudflare, Inc.), which stores it in a Cloudflare database (Workers KV). We receive:
 

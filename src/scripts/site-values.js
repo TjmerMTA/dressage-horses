@@ -17,6 +17,26 @@ export function whatsappHref(link) {
   return m ? `https://wa.me/${m[1]}` : null;
 }
 
+/**
+ * The Meta (Facebook) Pixel id: digits only (spaces from a paste are dropped), or null.
+ * Only the shape we can be sure of is checked — digits, a sane length — and Meta judges
+ * the rest. null means: no pixel, no cookie banner, nothing from Meta on the site.
+ */
+export function metaPixelId(value) {
+  const s = String(value == null ? "" : value).replace(/\s+/g, "");
+  return /^\d{6,20}$/.test(s) ? s : null;
+}
+
+/** "https://www.instagram.com/koni__horses/" → "@koni__horses" (the link text on /thanks/). */
+export function socialHandle(href) {
+  try {
+    const first = new URL(href).pathname.split("/").filter(Boolean)[0] || "";
+    return first ? `@${first.replace(/^@/, "")}` : href;
+  } catch {
+    return String(href || "");
+  }
+}
+
 const SOCIAL_HOSTS = { instagram: /(^|\.)instagram\.com$/, tiktok: /(^|\.)tiktok\.com$/ };
 
 /** A profile link that points at a real profile on that network, or null. */
@@ -72,10 +92,11 @@ export function unsetValues({ site, imprint, privacy }) {
   if (site) {
     if (!isSet(site.brand)) add("brand", "Company name", `The footer shows “${displayName(site)}” instead.`, "site.json", "brand");
     if (!whatsappHref(site.links && site.links.whatsapp)) {
-      add("whatsapp", "WhatsApp number", "Meanwhile the footer shows no WhatsApp icon and the quiz’s thank-you screen no “Write on WhatsApp now” button; visitors can only send the quiz.", "site.json", "links.whatsapp");
+      add("whatsapp", "WhatsApp number", "Meanwhile the footer shows no WhatsApp icon and the quiz’s “sending failed” message does not point to WhatsApp; visitors can only send the quiz.", "site.json", "links.whatsapp");
     }
-    if (!socialHref("instagram", site.links && site.links.instagram)) add("instagram", "Instagram link", "Meanwhile the footer shows no Instagram icon.", "site.json", "links.instagram");
+    if (!socialHref("instagram", site.links && site.links.instagram)) add("instagram", "Instagram link", "Meanwhile the footer shows no Instagram icon, and the thank-you page has no “Follow us on Instagram” line.", "site.json", "links.instagram");
     if (!socialHref("tiktok", site.links && site.links.tiktok)) add("tiktok", "TikTok link", "Meanwhile the footer shows no TikTok icon.", "site.json", "links.tiktok");
+    if (!metaPixelId(site.tracking && site.tracking.metaPixelId)) add("metaPixel", "Meta Pixel ID", "Meanwhile nothing from Meta loads, there is no cookie banner, and Meta receives no PageView or Lead events from the site.", "site.json", "tracking.metaPixelId");
   }
   if (imprint) {
     for (const [key, label] of IMPRINT_FIELDS) {
