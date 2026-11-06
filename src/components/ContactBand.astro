@@ -7,6 +7,11 @@ import SocialLinks from './SocialLinks.astro';
 import { getSite, quizHref } from '../lib/texts';
 import { displayName, whatsappHref } from '../scripts/site-values.js';
 
+interface Props {
+  /** Only the socials and the small print: no photo, heading or quiz button (the thank-you page). */
+  short?: boolean;
+}
+const { short = false } = Astro.props;
 const site = await getSite();
 const { footer } = site;
 const year = new Date().getFullYear();
@@ -17,8 +22,8 @@ const path = Astro.url.pathname;
 const [logo1, logo2] = await Promise.all([1, 2].map((d) => getImage({ src: site.logo, width: 34 * d, height: 34 * d })));
 ---
 
-<footer class="contact" id="contact">
-  <div class="photo photo-contact on" id="photo-contact" style={footer.photoPosition ? `--focus: ${footer.photoPosition}` : undefined}>
+<footer class:list={["contact", { "contact-short": short }]} id="contact">
+  {!short && (<div class="photo photo-contact on" id="photo-contact" style={footer.photoPosition ? `--focus: ${footer.photoPosition}` : undefined}>
     <Picture
       src={footer.photo}
       alt={footer.photoAlt}
@@ -29,14 +34,16 @@ const [logo1, logo2] = await Promise.all([1, 2].map((d) => getImage({ src: site.
       loading="lazy"
       decoding="async"
     />
-  </div>
+  </div>)}
   <div class="wrap">
     <div class="contact-main">
+      {!short && (<>
       <h2>{footer.title}</h2>
       <p class="lead">{!whatsappHref(site.links.whatsapp) && footer.leadNoWhatsapp ? footer.leadNoWhatsapp : footer.lead}</p>
       <div class="cta-row">
         <a class="btn" href={quizHref(path)}>{footer.cta}</a>
       </div>
+      </>)}
       <SocialLinks />
     </div>
     <div class="foot">
@@ -64,6 +71,8 @@ const [logo1, logo2] = await Promise.all([1, 2].map((d) => getImage({ src: site.
   .contact .wrap { position: relative; z-index: 1; }
   @media (max-width: 899px) { .contact { padding-block-start: 15rem; } }
   .contact-main { max-width: 34rem; }
+  .contact.contact-short { padding-block-start: 2.6rem; }
+  .contact-short :global(.socials) { margin-block-start: 0; }
   .contact h2 { font-size: clamp(1.8rem, 4.4vw, 2.7rem); }
   .contact .lead { margin-block-start: 0.9rem; color: var(--muted); max-width: 30rem; }
   .contact :global(.socials) { display: flex; flex-wrap: wrap; gap: 1rem; margin-block-start: 1.8rem; }

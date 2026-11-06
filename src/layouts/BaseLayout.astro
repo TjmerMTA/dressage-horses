@@ -17,9 +17,11 @@ interface Props {
   ogType?: string | undefined;
   /** Leave out the public contact band at the bottom (used by /admin/). */
   bare?: boolean;
+  /** A footer with only the socials and the small print (the thank-you page). */
+  shortFooter?: boolean;
 }
 
-const { title, description, ogType = 'website', bare = false } = Astro.props;
+const { title, description, ogType = 'website', bare = false, shortFooter = false } = Astro.props;
 const site = await getSite();
 const home = await getHome();
 
@@ -57,7 +59,7 @@ const ogImageUrl = new URL(ogImage.src, Astro.site);
     <a class="skip btn btn-sm" href="#main">{site.skipLink}</a>
     {pixelId && <CookieBanner pixelId={pixelId} />}
     <slot />
-    {!bare && <ContactBand />}
+    {!bare && <ContactBand short={shortFooter} />}
     <slot name="after-footer" />
   </body>
 </html>

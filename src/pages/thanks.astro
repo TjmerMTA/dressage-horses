@@ -14,7 +14,7 @@ const t = site.thanks;
 const ig = socialHref('instagram', site.links.instagram);
 ---
 
-<BaseLayout title={t.metaTitle} description={t.text}>
+<BaseLayout title={t.metaTitle} description={t.text} shortFooter>
   <Fragment slot="head">
     <meta name="robots" content="noindex" />
     {/* Runs while the page is parsed, before the consent script: remembers for this page
