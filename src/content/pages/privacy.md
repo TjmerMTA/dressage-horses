@@ -17,7 +17,7 @@ reviewed: false
 
 - your answers: where you are from, your budget and how you want to buy;
 - your name and your WhatsApp number;
-- that you ticked the consent box;
+- that you agreed to be contacted by sending the form;
 - the time you sent the quiz, the address of the page you sent it from and, if the link you followed contained them, campaign parameters such as `utm_source`;
 - the country your connection comes from, as Cloudflare reports it: a two-letter code such as BE, with no city and no IP address.
 
@@ -27,7 +27,7 @@ Your request can be seen only by the people who answer enquiries for the company
 
 ## Why we use it
 
-We use your details only to contact you on WhatsApp about your request and to prepare the selection of horses you asked for. The legal basis is your consent (Article 6(1)(a) GDPR), which you give by ticking the checkbox before you send the quiz. You can withdraw it at any time, as described below.
+We use your details only to contact you on WhatsApp about your request and to prepare the selection of horses you asked for. The legal basis is your consent (Article 6(1)(a) GDPR), which you give by sending the quiz. You can withdraw it at any time, as described below.
 
 We do not sell your details, we do not pass them on to advertisers, and we do not send you marketing messages.
 
