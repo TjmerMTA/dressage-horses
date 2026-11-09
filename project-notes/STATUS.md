@@ -1,8 +1,8 @@
 # Status
 
-Notebook v1 — updated 2026-11-06 16:50
+Notebook v1 — updated 2026-11-09 16:00
 
-**Last time:** the site moved to https://koni.quest (HTTPS on, dev.siteboosty.com no longer
+**Last time:** 09.11 — consent checkbox under the quiz form removed, text kept as a notice; privacy page wording updated (c5cc6af). Before that: the site moved to https://koni.quest (HTTPS on, dev.siteboosty.com no longer
 serves it); the thank-you page /thanks/ and the Meta Pixel setting (admin → Texts, behind a
 consent banner) are live, build `c02c905`.
 **Waiting on you:** the Meta Pixel id pasted in the admin; one real test lead from the site;
