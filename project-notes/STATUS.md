@@ -1,8 +1,8 @@
 # Status
 
-Notebook v1 — updated 2026-11-09 16:00
+Notebook v1 — updated 2026-11-10 12:30
 
-**Last time:** 09.11 — consent checkbox under the quiz form removed, text kept as a notice; privacy page wording updated (c5cc6af). Before that: the site moved to https://koni.quest (HTTPS on, dev.siteboosty.com no longer
+**Last time:** 10.11 — the quiz's WhatsApp field got a country-code picker with search (flag + code, 243 countries, guessed from the browser language and the region answer); a bare "00" no longer passes (3790a46). 09.11 — consent checkbox under the quiz form removed, text kept as a notice; privacy page wording updated (c5cc6af). Before that: the site moved to https://koni.quest (HTTPS on, dev.siteboosty.com no longer
 serves it); the thank-you page /thanks/ and the Meta Pixel setting (admin → Texts, behind a
 consent banner) are live, build `c02c905`.
 **Waiting on you:** the Meta Pixel id pasted in the admin; one real test lead from the site;

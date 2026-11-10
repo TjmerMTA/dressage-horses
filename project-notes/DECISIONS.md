@@ -97,3 +97,8 @@ Revisit when: the client wants TikTok or Google tags too.
 ## 2026-11-06 — The site lives at koni.quest
 The client's domain (GoDaddy). GitHub Pages holds one custom domain, so dev.siteboosty.com
 no longer serves the site. Worker ALLOWED_ORIGINS keeps it for now.
+
+## 2026-11-10 — Country-code picker in the quiz (director)
+- What: a flag + "+code" button before the WhatsApp number, opening a searchable list; the lead is stored as "+<code> <national digits>". Asked because visitors typed just "00".
+- Chose: our own small list (src/scripts/countries.js) instead of a phone library — no new dependency, page stays light. Flags are emoji (on Windows they show as two letters). The default country is the browser's language region when it agrees with the "Where are you from?" answer, else US for USA/Canada, UAE for GCC, none for Europe/Asia (the visitor must pick). Say if not.
+- Revisit when: leads arrive with wrong codes, or the client wants per-country number length checks.
