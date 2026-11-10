@@ -90,4 +90,9 @@ export const KEY_LABELS = {
   noScriptLink: "Link text shown after it when a WhatsApp number is set",
   noScriptEmail: "Link text shown after it when only an e-mail is set",
   noScriptNone: "Shown instead when neither WhatsApp nor an e-mail is set",
+  countryLabel: "Country code button (for screen readers)",
+  countrySearch: "Search box in the country list",
+  countryNone: "Shown when the search finds no country",
+  countryChoose: "Country code button before a country is chosen",
+  country: "No country code chosen",
 };

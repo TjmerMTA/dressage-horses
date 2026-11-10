@@ -72,12 +72,18 @@ const home = defineCollection({
         whatsappLabel: z.string(),
         whatsappPlaceholder: z.string(),
         whatsappHint: z.string(),
+        // The country-code picker before the phone number.
+        countryLabel: z.string().optional(),
+        countrySearch: z.string().optional(),
+        countryNone: z.string().optional(),
+        countryChoose: z.string().optional(),
         consent: z.string(),
         submit: z.string(),
         sending: z.string(),
         errors: z.object({
           name: z.string(),
           whatsapp: z.string(),
+          country: z.string().optional(), // no country code chosen
           consent: z.string(),
           send: z.string(),
           sendNoWhatsapp: z.string().optional(), // used while no WhatsApp number is set

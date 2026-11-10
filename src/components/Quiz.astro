@@ -56,8 +56,10 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
 
 <script>
   import { sendLead } from '../scripts/lead-form.js';
+  import { COUNTRIES, countryByIso, matchDial, guessCountry, nationalDigits, fold } from '../scripts/countries.js';
 
   type StepKey = 'region' | 'budget' | 'format';
+  type Country = (typeof COUNTRIES)[number];
   interface QuizData {
     stepLabel: string;
     steps: { key: StepKey; title: string; options: { icon: string; answer: string }[] }[];
@@ -66,10 +68,14 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
     whatsappLabel: string;
     whatsappPlaceholder: string;
     whatsappHint: string;
+    countryLabel?: string;
+    countrySearch?: string;
+    countryNone?: string;
+    countryChoose?: string;
     consent: string;
     submit: string;
     sending: string;
-    errors: { name: string; whatsapp: string; consent: string; send: string };
+    errors: { name: string; whatsapp: string; country?: string; consent: string; send: string };
     endpoint: string;
   }
 
@@ -79,7 +85,9 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
   if (Q) {
     const STEPS = Q.steps;
     const TOTAL = 4;
-    const answers = { region: '', budget: '', format: '', name: '', whatsapp: '' };
+    // `whatsapp` is what the visitor typed, `cc` the country chosen in the picker,
+    // `whatsappFull` the number as sent: "+<code> <national digits>".
+    const answers = { region: '', budget: '', format: '', name: '', whatsapp: '', cc: '', whatsappFull: '' };
     let step = 0;
     const stepsEl = document.getElementById('steps') as HTMLElement;
     const backBtn = document.getElementById('back') as HTMLButtonElement;
@@ -139,6 +147,166 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       return wrap;
     };
 
+    // The country-code button before the phone number: flag and "+code"; it opens a list
+    // with a search box (by name, ISO code or dialling code), worked by mouse, touch or
+    // keyboard (arrows, Enter, Escape). A number typed or pasted with "+" or "00" in front
+    // moves its code into the button by itself.
+    const countryPicker = (input: HTMLInputElement, onChange: () => void) => {
+      let current: Country | undefined = countryByIso(answers.cc || guessCountry(answers.region));
+      const root = el('div', 'cc');
+      const btn = el('button', 'cc-btn');
+      btn.type = 'button';
+      btn.setAttribute('aria-haspopup', 'listbox');
+      btn.setAttribute('aria-expanded', 'false');
+      const pop = el('div', 'cc-pop');
+      pop.hidden = true;
+      const search = el('input', 'cc-search');
+      search.type = 'search';
+      search.placeholder = Q.countrySearch || 'Search country or code';
+      search.autocomplete = 'off';
+      search.setAttribute('role', 'combobox');
+      search.setAttribute('aria-expanded', 'true');
+      search.setAttribute('aria-controls', 'cc-list');
+      search.setAttribute('aria-autocomplete', 'list');
+      search.setAttribute('aria-label', Q.countrySearch || 'Search country or code');
+      const list = el('ul', 'cc-list');
+      list.id = 'cc-list';
+      list.setAttribute('role', 'listbox');
+      list.setAttribute('aria-label', Q.countryLabel || 'Country code');
+      const none = el('p', 'cc-none', Q.countryNone || 'No country found');
+      none.hidden = true;
+      pop.append(search, list, none);
+      root.append(btn, pop);
+
+      // "+1 876" rather than "+1876" for the countries inside the North American +1.
+      const showDial = (c: Country) => '+' + (c.dial.length === 4 && c.dial[0] === '1' ? '1 ' + c.dial.slice(1) : c.dial);
+      const paintButton = () => {
+        btn.replaceChildren();
+        const flag = el('span', 'cc-flag', current ? current.flag : '🌐');
+        flag.setAttribute('aria-hidden', 'true');
+        const code = el('span', 'cc-code', current ? showDial(current) : Q.countryChoose || 'Code');
+        const caret = el('span', 'cc-caret');
+        caret.setAttribute('aria-hidden', 'true');
+        btn.append(flag, code, caret);
+        btn.setAttribute('aria-label', `${Q.countryLabel || 'Country code'}: ${current ? `${current.name} ${showDial(current)}` : Q.countryChoose || 'Code'}`);
+        answers.cc = current ? current.iso : '';
+      };
+
+      let shown: Country[] = [];
+      let active = 0;
+      const setActive = (i: number) => {
+        const items = list.children;
+        if (!items.length) return;
+        active = (i + items.length) % items.length;
+        [...items].forEach((li, k) => li.classList.toggle('is-active', k === active));
+        const li = items[active] as HTMLElement;
+        search.setAttribute('aria-activedescendant', li.id);
+        li.scrollIntoView({ block: 'nearest' });
+      };
+      const fill = () => {
+        const q = fold(search.value.trim()).replace(/^\+|^00/, '');
+        const qDigits = q.replace(/\D/g, '');
+        shown = !q
+          ? (current ? [current, ...COUNTRIES.filter((c) => c !== current)] : COUNTRIES)
+          : COUNTRIES
+              .map((c) => {
+                const n = fold(c.name);
+                const rank = qDigits && qDigits === q ? (c.dial === qDigits ? 0 : c.dial.startsWith(qDigits) ? 1 : -1)
+                  : c.iso.toLowerCase() === q ? 0 : n.startsWith(q) ? 1 : n.split(/[\s(-]+/).some((w) => w.startsWith(q)) ? 2 : n.includes(q) ? 3 : -1;
+                return { c, rank };
+              })
+              .filter((x) => x.rank >= 0)
+              .sort((a, b) => a.rank - b.rank || a.c.dial.length - b.c.dial.length)
+              .map((x) => x.c);
+        list.replaceChildren(...shown.map((c, k) => {
+          const li = el('li', 'cc-opt');
+          li.id = 'cc-' + c.iso;
+          li.setAttribute('role', 'option');
+          li.setAttribute('aria-selected', String(c === current));
+          const f = el('span', 'cc-flag', c.flag); f.setAttribute('aria-hidden', 'true');
+          li.append(f, el('span', 'cc-name', c.name), el('span', 'cc-dial', showDial(c)));
+          li.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus in the search box
+          li.addEventListener('click', () => choose(c));
+          li.addEventListener('mousemove', () => { if (active !== k) setActive(k); });
+          return li;
+        }));
+        none.hidden = shown.length > 0;
+        if (shown.length) setActive(0); else search.removeAttribute('aria-activedescendant');
+      };
+
+      const outside = (e: Event) => { if (!root.contains(e.target as Node)) close(false); };
+      const open = () => {
+        if (!pop.hidden) return;
+        pop.hidden = false;
+        btn.setAttribute('aria-expanded', 'true');
+        root.classList.add('is-open');
+        search.value = '';
+        fill();
+        list.scrollTop = 0;
+        search.focus({ preventScroll: true });
+        document.addEventListener('pointerdown', outside, true);
+      };
+      const close = (focusBtn: boolean) => {
+        if (pop.hidden) return;
+        pop.hidden = true;
+        btn.setAttribute('aria-expanded', 'false');
+        root.classList.remove('is-open');
+        document.removeEventListener('pointerdown', outside, true);
+        if (focusBtn) btn.focus();
+      };
+      const choose = (c: Country) => {
+        current = c;
+        paintButton();
+        close(false);
+        input.focus();
+        onChange();
+      };
+
+      btn.addEventListener('click', () => (pop.hidden ? open() : close(true)));
+      btn.addEventListener('keydown', (e) => { if (e.key === 'ArrowDown') { e.preventDefault(); open(); } });
+      search.addEventListener('input', fill);
+      search.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); setActive(active + 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(active - 1); }
+        else if (e.key === 'Enter') { e.preventDefault(); if (shown[active]) choose(shown[active]); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(true); }
+        else if (e.key === 'Tab') close(false);
+      });
+
+      // What the field holds, read as a number: with "+"/"00" in front, its own code decides
+      // the country; otherwise the button's country and the digits as typed.
+      const parse = (): { country: Country | undefined; national: string } => {
+        const v = input.value.trim();
+        const digits = v.replace(/\D/g, '');
+        const intl = /^\+/.test(v) ? digits : /^00/.test(digits) ? digits.slice(2) : '';
+        if (intl) {
+          const m = matchDial(intl, current?.iso);
+          if (m) return { country: m.country, national: nationalDigits(m.country.iso, m.rest) };
+          return { country: undefined, national: '' };
+        }
+        // The code typed again without "+" ("1 555 123 4567" with the USA chosen) is not part of the number.
+        const local = current && digits.length >= 11 && digits.length - current.dial.length >= 8 && digits.startsWith(current.dial)
+          ? digits.slice(current.dial.length) : digits;
+        return { country: current, national: current ? nationalDigits(current.iso, local) : digits };
+      };
+      // Moves a typed "+code" into the button, leaving the national number in the field.
+      const absorb = () => {
+        const v = input.value.trim();
+        if (!/^(\+|00)/.test(v)) return;
+        const { country: c, national } = parse();
+        if (!c || !national) return;
+        current = c;
+        paintButton();
+        input.value = national;
+      };
+      input.addEventListener('blur', absorb);
+      input.addEventListener('paste', () => setTimeout(() => { absorb(); onChange(); }, 0));
+      input.addEventListener('input', () => { answers.whatsapp = input.value; });
+
+      paintButton();
+      return { root, open, parse, absorb };
+    };
+
     const renderContactStep = () => {
       const wrap = el('div');
       const h = el('h3', 'q-title', Q.contactTitle);
@@ -157,11 +325,14 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
 
       const f2 = el('div', 'field');
       const l2 = el('label', '', Q.whatsappLabel); l2.htmlFor = 'f-wa';
-      const i2 = el('input'); i2.type = 'tel'; i2.id = 'f-wa'; i2.name = 'whatsapp'; i2.autocomplete = 'tel'; i2.inputMode = 'tel'; i2.placeholder = Q.whatsappPlaceholder; i2.value = answers.whatsapp;
+      const i2 = el('input'); i2.type = 'tel'; i2.id = 'f-wa'; i2.name = 'whatsapp'; i2.autocomplete = 'tel-national'; i2.inputMode = 'tel'; i2.placeholder = Q.whatsappPlaceholder; i2.value = answers.whatsapp;
       i2.setAttribute('aria-describedby', 'h-wa e-wa');
       const hint = el('div', 'hint', Q.whatsappHint); hint.id = 'h-wa';
       const e2 = el('div', 'err'); e2.id = 'e-wa';
-      f2.append(l2, i2, hint, e2);
+      const picker = countryPicker(i2, () => { if (isInvalid(i2) && waOk()) setFieldError(i2, e2, ''); });
+      const row = el('div', 'tel-row');
+      row.append(picker.root, i2);
+      f2.append(l2, row, hint, e2);
 
       // Consent is a notice only (client 09.11.2026: no checkbox, keep the text) — sending the form means agreement.
       const c = el('p', 'consent', Q.consent);
@@ -178,7 +349,18 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
 
       form.append(f1, f2, c, e3, trap, actions);
       const nameOk = () => i1.value.trim().length >= 2;
-      const waOk = () => { const n = i2.value.replace(/\D/g, '').length; return n >= 7 && n <= 15; };
+      // The number is the chosen country's code plus the national digits (a leading trunk
+      // "0" dropped): at least 4 national digits, 7–15 in all, as the Worker checks.
+      const fullNumber = () => {
+        const { country: c, national } = picker.parse();
+        return c && national ? `+${c.dial} ${national}` : '';
+      };
+      const waOk = () => {
+        const { country: c, national } = picker.parse();
+        const all = (c ? c.dial.length : 0) + national.length;
+        return !!c && national.length >= 4 && all >= 7 && all <= 15;
+      };
+      const waError = () => (waOk() ? '' : !picker.parse().country && i2.value.replace(/\D/g, '').length >= 4 ? Q.errors.country || Q.errors.whatsapp : Q.errors.whatsapp);
       // A message disappears as soon as its field becomes valid, not at the next submit.
       // New messages appear only on submit, never while the visitor is still typing.
       i1.addEventListener('input', () => { if (isInvalid(i1) && nameOk()) setFieldError(i1, e1, ''); });
@@ -187,13 +369,17 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
         ev.preventDefault();
         e3.textContent = ''; // may hold a "sending failed" message from an earlier attempt
         setFieldError(i1, e1, nameOk() ? '' : Q.errors.name);
-        setFieldError(i2, e2, waOk() ? '' : Q.errors.whatsapp);
+        picker.absorb();
+        setFieldError(i2, e2, waError());
         const firstBad = [i1, i2].find(isInvalid);
-        if (firstBad) { firstBad.focus(); return; }
+        if (firstBad) {
+          if (firstBad === i2 && !picker.parse().country) picker.open(); else firstBad.focus();
+          return;
+        }
         const name = i1.value.trim();
-        const wa = i2.value.trim();
         answers.name = name;
-        answers.whatsapp = wa;
+        answers.whatsapp = i2.value.trim();
+        answers.whatsappFull = fullNumber();
         send(submit, trapInput.value, { name: e1, whatsapp: e2, other: e3 }, { name: i1, whatsapp: i2 });
       });
       wrap.appendChild(form);
@@ -253,7 +439,7 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
       btn.disabled = true;
       btn.textContent = Q.sending;
       const result = await sendLead(
-        { region: answers.region, budget: answers.budget, format: answers.format, name: answers.name, whatsapp: answers.whatsapp, consent: true, website: honeypot, page: location.href },
+        { region: answers.region, budget: answers.budget, format: answers.format, name: answers.name, whatsapp: answers.whatsappFull, consent: true, website: honeypot, page: location.href },
         Q.endpoint ? { endpoint: Q.endpoint } : {},
       );
       if (result.ok) {
@@ -317,6 +503,29 @@ const firstLabel = quiz.stepLabel.replace('{step}', '1').replace('{total}', '4')
   .field input[type="text"], .field input[type="tel"] { width: 100%; min-height: 3.3rem; padding: 0.7rem 1rem; border: 2px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); font: 1.05rem var(--sans); }
   .field input:focus { border-color: var(--accent); outline: none; }
   .field input[aria-invalid="true"], .field input[aria-invalid="true"]:focus { border-color: var(--err); }
+  /* Country-code picker + number, side by side. */
+  .tel-row { position: relative; display: flex; gap: 0.5rem; align-items: stretch; }
+  .tel-row input[type="tel"] { flex: 1; min-width: 0; }
+  .cc { flex: none; }
+  .cc-btn { height: 100%; min-height: 3.3rem; display: inline-flex; align-items: center; gap: 0.45rem; padding: 0 0.8rem 0 0.9rem; border: 2px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); font: 600 1.05rem var(--sans); cursor: pointer; white-space: nowrap; transition: border-color .12s, background .12s; }
+  .cc-btn:hover { border-color: var(--line-strong); }
+  .cc-btn:focus-visible, .cc.is-open .cc-btn { border-color: var(--accent); outline: none; }
+  .cc.is-open .cc-btn { background: var(--accent-soft); }
+  .cc-flag { font-size: 1.3rem; line-height: 1; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", var(--sans); }
+  .cc-code { font-variant-numeric: tabular-nums; }
+  .cc-caret { width: 0.5rem; height: 0.5rem; margin-inline-start: 0.15rem; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: translateY(-25%) rotate(45deg); transition: transform .15s; }
+  .cc.is-open .cc-caret { transform: translateY(20%) rotate(-135deg); }
+  .cc-pop { position: absolute; z-index: 20; inset-inline: 0; inset-block-start: calc(100% + 0.4rem); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 18px 40px rgba(41,19,5,.16), 0 2px 6px rgba(41,19,5,.06); padding: 0.5rem; }
+  .cc-pop[hidden] { display: none; }
+  .cc-search { width: 100%; min-height: 2.9rem; padding: 0.55rem 0.9rem 0.55rem 2.4rem; border: 2px solid var(--line); border-radius: 12px; background: var(--surface) no-repeat 0.85rem 50% / 1rem url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23887766' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='M15.5 15.5 21 21'/%3E%3C/svg%3E"); color: var(--text); font: 1rem var(--sans); }
+  .cc-search:focus { border-color: var(--accent); outline: none; }
+  .cc-list { list-style: none; margin: 0.4rem 0 0; padding: 0; max-height: min(18rem, 45vh); overflow-y: auto; overscroll-behavior: contain; }
+  .cc-opt { display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.75rem; border-radius: 10px; cursor: pointer; font-size: 0.98rem; }
+  .cc-opt.is-active { background: var(--accent-soft); }
+  .cc-opt[aria-selected="true"] { font-weight: 700; }
+  .cc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cc-dial { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .cc-none { margin: 0.6rem 0.75rem; color: var(--muted); font-size: 0.95rem; }
   .hint { font-size: 0.85rem; color: var(--muted); margin-block-start: 0.35rem; }
   .err { font-size: 0.88rem; color: var(--err); margin-block-start: 0.35rem; min-height: 1.2em; }
   .consent { margin: 0; font-size: 0.88rem; color: var(--muted); }
